@@ -1,0 +1,26 @@
+{
+  "name": "chapters-server",
+  "version": "0.0.0",
+  "description": "Hapi server for Chapters",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/bananaoomarang/chapters-server.git"
+  },
+  "main": "server",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Milo Mordaunt <milomord@gmail.com>",
+  "license": "Apache",
+  "devDependencies": {
+    "debug": "^2.1.1"
+  },
+  "dependencies": {
+    "async": "^0.9.0",
+    "good": "^5.1.1",
+    "good-console": "^4.1.0",
+    "hapi": "^8.1.0",
+    "hapi-auth-jwt": "^2.0.0",
+    "jsonwebtoken": "^3.2.2"
+  }
+}
