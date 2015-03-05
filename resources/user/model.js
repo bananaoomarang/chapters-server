@@ -1,13 +1,15 @@
 'use strict';
 
-var db    = require('nano')('http://localhost:5984/_users');
 var debug = require('debug')('accounts');
 
 module.exports = function (cfg) {
+  var authenticate = require('../../lib/authentication')(cfg);
+
   var model = {};
+  var db    = cfg.userdb;
 
   model.add = function (user, cb) {
-    
+
     debug('creating %s', user.username);
 
     var doc = {
@@ -27,7 +29,7 @@ module.exports = function (cfg) {
 
     });
 
-  }
+  };
 
   model.remove = function (username, cb) {
 
@@ -41,13 +43,13 @@ module.exports = function (cfg) {
 
     });
 
-  }
+  };
 
   model.get = function (username, cb) {
-    
+
     debug('getting: %s', username);
 
-    db.get('org.couchdb.user:' + username, function (err, body, headers) {
+    db.get('org.couchdb.user:' + username, function (err, body) {
 
       if (err) return cb(err);
 
@@ -55,7 +57,7 @@ module.exports = function (cfg) {
 
     });
 
-  }
+  };
 
   model.list = function (cb) {
 
@@ -67,8 +69,20 @@ module.exports = function (cfg) {
 
     });
 
-  }
+  };
+
+  model.getToken = function (user, password, cb) {
+
+    authenticate(user, function (err, token) {
+
+      if(err) return cb(err);
+
+      return cb(null, token);
+
+    });
+
+  };
 
   return model;
 
-}
+};

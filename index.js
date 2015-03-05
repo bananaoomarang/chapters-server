@@ -1,57 +1,28 @@
 'use strict';
 
-var Hapi           = require('hapi');
-var Good           = require('good');
-var goodConsole    = require('good-console');
-var jwt            = require('jsonwebtoken');
-var hapiJwt        = require('hapi-auth-jwt');
-var crypto         = require('crypto');
-var async          = require('async');
-var routes         = require('./lib/routes')({});
+var Hapi   = require('hapi');
+var async  = require('async');
+var userdb = require('nano')('http://localhost:5984/_users');
 
 var server = module.exports = new Hapi.Server();
 
+var cfg = {
+  server: server,
+  userdb: userdb,
+  tokenSecret: 'PLEASEREPLACEME', // XXX Replace with secret for JWT validation
+  tokenExpiration: 10 // Token expiration timeout in minutes
+};
+
+var routes  = require('./lib/routes')(cfg);
+var plugins = require('./lib/plugins')(cfg);
+
 server.connection({ port: 8888 });
 
-server.register({
-  register: Good,
-  options: {
-    reporters: [{
-      reporter: goodConsole,
-      args: [{ log: '*', response: '*' }]
-    }]
-  }
-}, function (err) {
-  if (err) {
-    throw err;
-  }
-});
-
-// XXX
-var privateKey = 'BbZJjyoXAdr8BUZuiKKARWimKfrSmQ6fv8kZ7OFfc'
-
-function validate (decodedToken, cb) {
-
-  accountManager.get(decodedToken.user, function getUserCb (err, user_doc) {
-    if(err) return cb(err, false, user_doc);
-
-    return cb(null, true, user_doc);
-  });
-
-}
-
-server.register({
-
-  register: hapiJwt
-
-}, function (err) {
+server.register(plugins.definitions, function next (err) {
 
   if (err) throw err;
 
-  server.auth.strategy('token', 'jwt', {
-    key: privateKey,
-    validateFunc: validate
-  });
+  async.parallel(plugins.jobsPostLoad);
 
 });
 
