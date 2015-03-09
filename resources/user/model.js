@@ -13,6 +13,7 @@ module.exports = function (cfg) {
 
     debug('creating %s', user.username);
 
+    // TODO joi validate
     var doc = {
       _id      : 'org.couchdb.user:' + user.username,
       name     : user.username,
@@ -104,7 +105,7 @@ module.exports = function (cfg) {
 
   };
 
-  model.getToken = function (user, password, cb) {
+  model.getToken = function (user, cb) {
 
     authenticate(user, function (err, token) {
 

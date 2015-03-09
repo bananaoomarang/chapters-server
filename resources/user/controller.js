@@ -11,7 +11,8 @@ module.exports = function (cfg) {
     user.add(newUser, function confirmUserAdded (err, body) {
       if (err) return reply(err);
 
-      return reply(body);
+      return reply(body)
+               .code(201);
     });
   };
 
