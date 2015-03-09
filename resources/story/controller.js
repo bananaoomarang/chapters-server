@@ -1,5 +1,7 @@
 'use strict';
 
+var Boom = require('boom');
+
 function trimExtension (filename) {
   var split = filename.split('.');
 
@@ -13,28 +15,31 @@ module.exports = function (cfg) {
   var story      = require('./model')(cfg);
 
   controller.get = function (req, reply) {
+
     story.get(req.params.title, function (err, text) {
 
-      if (err) return reply(err);
+      if (err) return reply( Boom.wrap(err) );
 
       return reply(text);
 
     });
-  }
+
+  };
 
   controller.upload = function (req, reply) {
+
     var file  = req.payload.file;
     var title = trimExtension(file.hapi.filename);
 
     story.save(req.payload.file, title, function (err) {
 
-      if (err) return reply(err);
+      if (err) return reply( Boom.wrap(err) );
 
       return reply('Successfully saved story');
 
     });
 
-  }
+  };
 
   return controller;
-}
+};
