@@ -45,6 +45,16 @@ module.exports = function (cfg) {
 
   };
 
+  controller.remove = function (req, reply) {
+
+    user.remove(req.params.name, function removeUser (err, body) {
+      if (err) return reply(err);
+
+      return reply(body);
+    });
+
+  };
+
   return controller;
 
 };

@@ -1,5 +1,6 @@
 'use strict';
 
+var async = require('async');
 var debug = require('debug')('accounts');
 
 module.exports = function (cfg) {
@@ -35,12 +36,44 @@ module.exports = function (cfg) {
 
     debug('removing: %s', username);
 
-    db.destroy(username, 'revision', function (err, body) {
+    var jobs = [
+
+      function getLatestRevision (done) {
+
+      /* eslint-disable camelcase */
+
+        db.get('org.couchdb.user:' + username, { revs_info: true  }, function (err, body) {
+
+      /* eslint-enable camelcase */
+
+          if (err) return done(err);
+
+          return done(null, body._rev);
+
+        });
+
+      },
+
+      function deleteDocument (revision, done) {
+
+        db.destroy('org.couchdb.user:' + username, revision, function (err, body) {
+
+          if (err) return done(err);
+
+          return done(null, body);
+
+        });
+      }
+
+    ];
+
+    async.waterfall(jobs, function asyncFinished (err, result) {
+
+      debug(err);
 
       if (err) return cb(err);
 
-      return cb(null, body);
-
+      return cb(null, result);
     });
 
   };
