@@ -28,14 +28,15 @@ module.exports = function (cfg) {
 
   controller.upload = function (req, reply) {
 
-    var file  = req.payload.file;
+    var file  = req.payload.story;
     var title = trimExtension(file.hapi.filename);
 
-    story.save(req.payload.file, title, function (err) {
+    story.save(file, title, function (err) {
 
       if (err) return reply( Boom.wrap(err) );
 
-      return reply('Successfully saved story');
+      return reply('Successfully saved story')
+               .code(201);
 
     });
 
