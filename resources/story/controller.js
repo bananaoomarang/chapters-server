@@ -27,7 +27,6 @@ module.exports = function (cfg) {
   };
 
   controller.upload = function (req, reply) {
-
     var file  = req.payload.story;
     var title = trimExtension(file.hapi.filename);
 

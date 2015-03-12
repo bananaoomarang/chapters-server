@@ -30,8 +30,10 @@ module.exports = function (cfg) {
 
       if (err) {
 
-        switch(err.error) {
-          case 'not_found':
+        switch(err.message) {
+          case 'missing':
+            return reply( Boom.unauthorized('User not found') );
+          case 'Invalid password':
             return reply( Boom.unauthorized('Invalid password') );
           default:
             return reply( Boom.wrap(err) );
