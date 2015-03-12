@@ -6,24 +6,15 @@ var debug = require('debug')('story');
 module.exports = function () {
   var model = {};
 
-  model.save = function (file, title, cb) {
+  model.save = function (text, title, cb) {
 
     var saveLocation = ['data', 'stories', title].join('/');
-    var write        = fs.createWriteStream(saveLocation, { encoding: 'utf-8' });
 
-    write.on('error', function (err) {
+    fs.writeFile(saveLocation, text, function (err) {
+      if (err) return cb(err);
 
-      cb(err);
-
-    })
-    .on('close', function () {
-
-      cb(null)
-
+      return cb(null, 'File saved successfully');
     });
-
-    file.pipe(write);
-
   };
 
   model.get = function (title, cb) {

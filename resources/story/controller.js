@@ -1,6 +1,6 @@
 'use strict';
 
-var Boom = require('boom');
+var Boom           = require('boom');
 
 function trimExtension (filename) {
   var split = filename.split('.');
@@ -27,17 +27,32 @@ module.exports = function (cfg) {
   };
 
   controller.upload = function (req, reply) {
-    var file  = req.payload.story;
-    var title = trimExtension(file.hapi.filename);
+    var payload = req.payload;
 
-    story.save(file, title, function (err) {
+    var text;
+    var title;
+
+    if(req.payload.file) {
+
+      text  = payload.file;
+      title = trimExtension(payload.filename);
+
+    } else {
+
+      text  = payload.text;
+      title = payload.title;
+
+    }
+
+    story.save(text, title, function (err) {
 
       if (err) return reply( Boom.wrap(err) );
 
       return reply('Successfully saved story')
-               .code(201);
+        .code(201);
 
     });
+
 
   };
 
