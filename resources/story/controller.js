@@ -16,7 +16,21 @@ module.exports = function (cfg) {
 
   controller.get = function (req, reply) {
 
-    story.get(req.params.title, function (err, text) {
+    // Parse markdown by default
+    var parse = true;
+
+    switch (req.query.parse) {
+      case 'html':
+        parse = true;
+        break;
+      case 'false':
+        parse = false;
+        break;
+      default:
+        break;
+    }
+
+    story.get(req.params.title, parse, function (err, text) {
 
       if (err) return reply( Boom.wrap(err) );
 

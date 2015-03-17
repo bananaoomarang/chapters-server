@@ -25,6 +25,8 @@
     "good-console": "^4.1.0",
     "hapi": "^8.1.0",
     "hapi-auth-jwt": "^2.0.0",
-    "jsonwebtoken": "^3.2.2"
+    "joi": "^6.0.8",
+    "jsonwebtoken": "^3.2.2",
+    "marked": "^0.3.3"
   }
 }

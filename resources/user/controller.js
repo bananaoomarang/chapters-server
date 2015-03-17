@@ -1,6 +1,8 @@
 'use strict';
 
-var Boom  = require('boom');
+var Boom       = require('boom');
+var Joi        = require('joi');
+var userSchema = require('../../lib/schemas').user;
 
 module.exports = function (cfg) {
   var user         = require('./model')(cfg);
@@ -10,6 +12,11 @@ module.exports = function (cfg) {
   controller.create = function (req, reply) {
 
     var newUser = req.payload;
+
+    Joi.validate(newUser, userSchema, function (err, value) {
+      if (err) console.log(err);
+      else console.log(value);
+    });
 
     user.add(newUser, function confirmUserAdded (err, body) {
 
