@@ -3,6 +3,9 @@
     "node": true,
     "browser": true
   },
+  "ecmaFeatures": {
+    "jsx": true
+  },
   "globals": {
     "$": true,
     "window": true,
@@ -12,13 +15,12 @@
   "rules": {
     // Ignore Rules
     "strict": 1,
-    "key-spacing": 0,
     "no-underscore-dangle": 0,
     "no-mixed-requires": 0,
     "no-process-exit": 0,
     "no-warning-comments": 0,
-    "no-multi-spaces": 0,
     "curly": 0,
+    "no-multi-spaces": 0,
 
     // Warnings
     "no-debugger": 1,
@@ -47,6 +49,9 @@
     "new-cap": 2,
     "no-spaced-func": 2,
     "no-space-before-semi": 2,
-    "quotes": [2, "single"]
+    "quotes": [2, "single"],
+    "key-spacing": [2, {
+      "align": "value",
+    }]
   }
 }

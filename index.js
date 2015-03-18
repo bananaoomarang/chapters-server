@@ -1,16 +1,19 @@
 'use strict';
 
-var Hapi   = require('hapi');
-var async  = require('async');
-var userdb = require('nano')('http://localhost:5984/_users');
+var Hapi      = require('hapi');
+var async     = require('async');
+var userdb    = require('nano')('http://localhost:5984/_users');
+var storiesdb = require('nano')('http://localhost:5984/stories');
 
 var server = module.exports = new Hapi.Server();
 
 var cfg = {
-  server: server,
-  userdb: userdb,
-  tokenSecret: 'PLEASEREPLACEME', // XXX Replace with secret for JWT validation
-  tokenExpiration: 10 // Token expiration timeout in minutes
+  server:           server,
+  directoryToServe: 'public',
+  userdb:           userdb,
+  storiesdb:        storiesdb,
+  tokenSecret:      'PLEASEREPLACEME', // XXX Replace with secret for JWT validation
+  tokenExpiration:  20 // Token expiration timeout in minutes
 };
 
 var routes  = require('./lib/routes')(cfg);

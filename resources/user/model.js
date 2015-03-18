@@ -15,13 +15,12 @@ module.exports = function (cfg) {
 
     // TODO joi validate
     var doc = {
-      _id      : 'org.couchdb.user:' + user.username,
-      name     : user.username,
-      type     : 'user',
-      roles    : [],
-      password : user.password
+      _id:      'org.couchdb.user:' + user.username,
+      name:     user.username,
+      type:     'user',
+      roles:    [],
+      password: user.password
     };
-
 
     db.insert(doc, function couchInsert (err, body) {
 

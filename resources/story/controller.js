@@ -1,6 +1,6 @@
 'use strict';
 
-var Boom           = require('boom');
+var Boom = require('boom');
 
 function trimExtension (filename) {
   var split = filename.split('.');
@@ -43,6 +43,7 @@ module.exports = function (cfg) {
   controller.upload = function (req, reply) {
     var payload = req.payload;
 
+    var username = req.auth.credentials.name;
     var text;
     var title;
 
@@ -58,7 +59,7 @@ module.exports = function (cfg) {
 
     }
 
-    story.save(text, title, function (err) {
+    story.save(username, text, title, function (err) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -72,7 +73,7 @@ module.exports = function (cfg) {
 
   // Return an array of stories by current user
   controller.list = function (req, reply) {
-    var credentials = req.auth.credentials;
+    // var credentials = req.auth.credentials;
 
     var list = [
       {

@@ -5,17 +5,47 @@ var debug  = require('debug')('story');
 var async  = require('async');
 var marked = require('marked');
 
-module.exports = function () {
+module.exports = function (cfg) {
   var model = {};
+  var db    = cfg.storiesdb;
 
-  model.save = function (text, title, cb) {
+  model.save = function (username, text, title, cb) {
 
     var saveLocation = ['data', 'stories', title].join('/');
 
-    fs.writeFile(saveLocation, text, function (err) {
+    var doc = {
+      _id:      '!' + username + '!' + title,
+      owner:    username,
+      depends:  [],
+      location: saveLocation
+    };
+
+    var jobs = [
+      function toDisk (done) {
+        fs.writeFile(saveLocation, text, function (err) {
+          if (err) return done(err);
+
+          return done(null, 'File saved successfully');
+        });
+      },
+
+      function toDB (done) {
+        db.insert(doc, function couchInsert (err, body) {
+
+          if (err) return done(err);
+
+          return done(null, body);
+
+        });
+      }
+    ];
+
+    async.parallel(jobs, function (err) {
       if (err) return cb(err);
 
-      return cb(null, 'File saved successfully');
+      debug('Successfully saved %s', title);
+
+      return cb(null);
     });
   };
 

@@ -37,6 +37,8 @@ module.exports = function (cfg) {
 
       if (err) {
 
+        console.log(err);
+
         switch(err.message) {
           case 'missing':
             return reply( Boom.unauthorized('User not found') );

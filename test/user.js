@@ -1,5 +1,7 @@
 'use strict';
 
+/* eslint-disable no-unused-expressions */
+
 var Lab       = require('lab');
 var Code      = require('code');
 var supertest = require('supertest');
