@@ -13,9 +13,8 @@ module.exports = function (cfg) {
 
     var newUser = req.payload;
 
-    Joi.validate(newUser, userSchema, function (err, value) {
-      if (err) console.log(err);
-      else console.log(value);
+    Joi.validate(newUser, userSchema, function (err) {
+      if (err) return reply(Boom.wrap(err));
     });
 
     user.add(newUser, function confirmUserAdded (err, body) {
@@ -36,8 +35,6 @@ module.exports = function (cfg) {
     user.getToken(credentials, function (err, token) {
 
       if (err) {
-
-        console.log(err);
 
         switch(err.message) {
           case 'missing':
@@ -80,9 +77,9 @@ module.exports = function (cfg) {
 
   };
 
-  controller.remove = function (req, reply) {
+  controller.destroy = function (req, reply) {
 
-    user.remove(req.params.name, function removeUser (err, body) {
+    user.destroy(req.params.name, function removeUser (err, body) {
 
       if (err) return reply( Boom.wrap(err) );
 

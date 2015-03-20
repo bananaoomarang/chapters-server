@@ -1,6 +1,7 @@
 'use strict';
 
-var Boom = require('boom');
+var Boom  = require('boom');
+var async = require('async');
 
 function trimExtension (filename) {
   var split = filename.split('.');
@@ -41,25 +42,70 @@ module.exports = function (cfg) {
   };
 
   controller.upload = function (req, reply) {
+
     var payload = req.payload;
 
     var username = req.auth.credentials.name;
-    var text;
-    var title;
+    var stream   = null;
+    var handler  = null;
+    var title    = null;
+    var text     = '';
 
-    if(req.payload.file) {
+    if(payload.file) {
 
-      text  = payload.file;
-      title = trimExtension(payload.filename);
+      // Then it's a multipart file upload
+
+      stream = payload.file;
+
+      handler = function handleFile () {
+        title = trimExtension(payload.file.hapi.filename);
+      };
 
     } else {
 
-      text  = payload.text;
-      title = payload.title;
+      // Then it's just JSON, but still a stream...
+
+      stream = payload;
+
+      handler = function handleJSON () {
+        var obj = JSON.parse(text);
+
+        title = obj.title;
+
+        text  = obj.text;
+      };
 
     }
 
-    story.save(username, text, title, function (err) {
+    var jobs = [
+      function parseStream (done) {
+
+        stream.on('data', function (d) {
+          text += d.toString();
+        })
+        .on('error', function (err) {
+          reply( Boom.wrap(err) );
+        })
+        .on('end', function () {
+          handler();
+
+          done();
+        });
+
+      },
+
+      function saveData (done) {
+        story.save(username, text, title, function (err) {
+
+          if (err) return done(err);
+
+          return done();
+
+        });
+      }
+    ];
+
+    async.series(jobs, function (err) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -67,7 +113,6 @@ module.exports = function (cfg) {
         .code(201);
 
     });
-
 
   };
 
@@ -91,6 +136,20 @@ module.exports = function (cfg) {
     ];
 
     reply(null, list);
+  };
+
+  controller.destroy = function (req, reply) {
+    var username = req.auth.credentials.name;
+    var title    = req.params.title;
+
+    story.destroy(username, title, function (err) {
+
+      if (err) return reply( Boom.wrap(err) );
+
+      reply();
+
+    });
+
   };
 
   return controller;

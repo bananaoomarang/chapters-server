@@ -18,6 +18,12 @@ lab.experiment('user', function () {
     password: 'password'
   };
 
+  var userForRegistration = {
+    username: user.username,
+    password: user.password,
+    email:    'reallycool@hotmail.com'
+  };
+
   lab.before(function (done) {
     server.start();
 
@@ -28,18 +34,39 @@ lab.experiment('user', function () {
 
     app
       .post('/user/create')
-      .send(user)
+      .send(userForRegistration)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(201)
       .end(function(err, res) {
 
-        if (err) done(err);
+        if (err) return done(err);
 
         var doc = res.body;
 
         expect(doc.ok).to.be.true();
         expect(doc.id).to.equal('org.couchdb.user:testuser');
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('Attempt login with non-existant user', function (done) {
+
+    app
+      .post('/user/login')
+      .send({ username: 'whereami', password: user.password })
+      .expect('Content-Type', 'application/json; charset=utf-8')
+      .expect(401)
+      .end(function(err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc.message).to.equal('User not found');
 
         done(null);
 
@@ -56,7 +83,7 @@ lab.experiment('user', function () {
       .expect(200)
       .end(function(err, res) {
 
-        if (err) done(err);
+        if (err) return done(err);
 
         var doc = res.text;
 
@@ -77,7 +104,7 @@ lab.experiment('user', function () {
       .expect(200)
       .end(function(err, res) {
 
-        if (err) done(err);
+        if (err) return done(err);
 
         var doc = res.body;
 
@@ -98,7 +125,7 @@ lab.experiment('user', function () {
       .expect(200)
       .end(function(err, res) {
 
-        if (err) done(err);
+        if (err) return done(err);
 
         var doc = res.body;
 
@@ -119,7 +146,7 @@ lab.experiment('user', function () {
       .expect(200)
       .end(function(err, res) {
 
-        if (err) done(err);
+        if (err) return done(err);
 
         var doc = res.body;
 
@@ -128,6 +155,7 @@ lab.experiment('user', function () {
         done(null);
 
       });
+
   });
 
   lab.after(function (done) {

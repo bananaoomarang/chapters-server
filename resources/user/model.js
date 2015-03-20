@@ -32,7 +32,7 @@ module.exports = function (cfg) {
 
   };
 
-  model.remove = function (username, cb) {
+  model.destroy = function (username, cb) {
 
     debug('removing: %s', username);
 

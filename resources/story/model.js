@@ -14,7 +14,7 @@ module.exports = function (cfg) {
     var saveLocation = ['data', 'stories', title].join('/');
 
     var doc = {
-      _id:      '!' + username + '!' + title,
+      _id:      username + '!' + title,
       owner:    username,
       depends:  [],
       location: saveLocation
@@ -97,6 +97,60 @@ module.exports = function (cfg) {
     ];
 
     async.waterfall(jobs, function (err, result) {
+
+      if (err) return cb(err);
+
+      return cb(null, result);
+
+    });
+
+  };
+
+  model.destroy = function (username, title, cb) {
+    debug('removing story: %s', title);
+
+    var dbKey = [username, title].join('!');
+
+    var jobs = [
+
+      function deleteFromDisk (done) {
+        fs.unlink('data/stories/' + title, function (err) {
+          if (err) return done(err);
+
+          done();
+        });
+      },
+
+      function getLatestRevision (done) {
+
+        /* eslint-disable camelcase */
+
+        db.get(dbKey, { revs_info: true  }, function (err, body) {
+
+        /* eslint-enable camelcase */
+
+          if (err) return done(err);
+
+          return done(null, body._rev);
+
+        });
+
+      },
+
+      function deleteFromDb (revision, done) {
+
+        db.destroy(dbKey, revision, function (err, body) {
+
+          if (err) return done(err);
+
+          return done(null, body);
+
+        });
+      }
+
+    ];
+
+    async.waterfall(jobs, function asyncFinished (err, result) {
 
       if (err) return cb(err);
 
