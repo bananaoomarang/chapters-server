@@ -14,10 +14,10 @@ module.exports = function (cfg) {
     var saveLocation = ['data', 'stories', title].join('/');
 
     var doc = {
-      _id:      username + '!' + title,
-      owner:    username,
-      depends:  [],
-      location: saveLocation
+      _id:     username + '!' + title,
+      owner:   username,
+      depends: [],
+      path:    saveLocation
     };
 
     var jobs = [
@@ -113,33 +113,33 @@ module.exports = function (cfg) {
 
     var jobs = [
 
-      function deleteFromDisk (done) {
-        fs.unlink('data/stories/' + title, function (err) {
-          if (err) return done(err);
-
-          done();
-        });
-      },
-
       function getLatestRevision (done) {
 
         /* eslint-disable camelcase */
 
-        db.get(dbKey, { revs_info: true  }, function (err, body) {
+        db.get(dbKey, { revs_info: true  }, function (err, doc) {
 
         /* eslint-enable camelcase */
 
           if (err) return done(err);
 
-          return done(null, body._rev);
+          return done(null, doc);
 
         });
 
       },
 
-      function deleteFromDb (revision, done) {
+      function deleteFromDisk (doc, done) {
+        fs.unlink(doc.path, function (err) {
+          if (err) return done(err);
 
-        db.destroy(dbKey, revision, function (err, body) {
+          done(null, doc);
+        });
+      },
+
+      function deleteFromDb (doc, done) {
+
+        db.destroy(dbKey, doc._rev, function (err, body) {
 
           if (err) return done(err);
 
