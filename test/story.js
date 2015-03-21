@@ -15,8 +15,8 @@ var app    = supertest('http://localhost:8888');
 lab.experiment('story', function () {
 
   var story = {
-    name:     'mock-story',
-    path:     'test/fixtures/mock-story.md'
+    name: 'mock-story',
+    path: 'test/fixtures/mock-story.md'
   };
 
   var user = {

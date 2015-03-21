@@ -17,6 +17,8 @@ module.exports = function (cfg) {
 
   controller.get = function (req, reply) {
 
+    var username = req.auth.credentials.name;
+
     // Parse markdown by default
     var parse = true;
 
@@ -31,7 +33,7 @@ module.exports = function (cfg) {
         break;
     }
 
-    story.get(req.params.title, parse, function (err, text) {
+    story.get(username, req.params.title, parse, function (err, text) {
 
       if (err) return reply( Boom.wrap(err) );
 

@@ -1,6 +1,7 @@
 'use strict';
 
 var fs     = require('fs');
+var path   = require('path');
 var debug  = require('debug')('story');
 var async  = require('async');
 var marked = require('marked');
@@ -11,21 +12,37 @@ module.exports = function (cfg) {
 
   model.save = function (username, text, title, cb) {
 
-    var saveLocation = ['data', 'stories', title].join('/');
+    var saveLoc = path.join('data', 'stories', username, title);
+    var saveDir = path.dirname(saveLoc);
 
     var doc = {
       _id:     username + '!' + title,
       owner:   username,
       depends: [],
-      path:    saveLocation
+      path:    saveLoc
     };
 
     var jobs = [
+      function mkdirp (done) {
+        fs.mkdir(saveDir, function (err) {
+
+          if (err && err.code !== 'EEXIST') {
+
+            done(err);
+
+          } else {
+
+            done();
+
+          }
+
+        });
+      },
       function toDisk (done) {
-        fs.writeFile(saveLocation, text, function (err) {
+        fs.writeFile(saveLoc, text, function (err) {
           if (err) return done(err);
 
-          return done(null, 'File saved successfully');
+          done(null, 'File saved successfully');
         });
       },
 
@@ -34,7 +51,7 @@ module.exports = function (cfg) {
 
           if (err) return done(err);
 
-          return done(null, body);
+          done(null, body);
 
         });
       }
@@ -45,16 +62,28 @@ module.exports = function (cfg) {
 
       debug('Successfully saved %s', title);
 
-      return cb(null);
+      cb();
     });
   };
 
-  model.get = function (title, parse, cb) {
+  model.get = function (username, title, parse, cb) {
 
     var jobs = [
 
-      function readFile (done) {
-        var location = ['data', 'stories', title].join('/');
+      function fetchFromDb (done) {
+        var key = [username, title].join('!');
+
+        db.get(key, function (err, doc) {
+
+          if (err) return done(err);
+
+          done(null, doc);
+
+        });
+      },
+
+      function readFile (doc, done) {
+        var location = doc.path;
         var read     = fs.createReadStream(location, { encoding: 'utf-8' });
         var text     = '';
 
