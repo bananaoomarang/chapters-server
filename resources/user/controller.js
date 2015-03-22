@@ -19,7 +19,15 @@ module.exports = function (cfg) {
 
     user.add(newUser, function confirmUserAdded (err, body) {
 
-      if (err) return reply( Boom.wrap(err) );
+      if (err) {
+
+        if (err.error === 'conflict') {
+          return reply( Boom.badRequest('User already exists') );
+        } else {
+          return reply( Boom.wrap(err) );
+        }
+
+      }
 
       return reply(body)
                .code(201);
