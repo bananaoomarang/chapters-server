@@ -110,6 +110,28 @@ lab.experiment('story', function () {
       });
   });
 
+  lab.test('List stories by user', function (done) {
+
+    app
+      .get('/story')
+      .set('Authorization', 'Bearer ' + user.token)
+      .expect(200)
+      .end(function (err, res) {
+
+        if (err) return done(err);
+
+        expect(res).to.be.ok;
+
+        var doc = res.body;
+
+        expect(doc[0].title).to.equal(story.name);
+
+        done(null);
+
+      });
+
+  });
+
   lab.test('get story', function (done) {
 
     app

@@ -1,10 +1,11 @@
 'use strict';
 
-var fs     = require('fs');
-var path   = require('path');
-var debug  = require('debug')('story');
-var async  = require('async');
-var marked = require('marked');
+var fs       = require('fs');
+var path     = require('path');
+var debug    = require('debug')('story');
+var async    = require('async');
+var marked   = require('marked');
+var sanitize = require('../../lib/sanitizeString');
 
 module.exports = function (cfg) {
   var model   = {};
@@ -17,7 +18,8 @@ module.exports = function (cfg) {
     var saveDir = path.dirname(saveLoc);
 
     var doc = {
-      _id:     username + '!' + title,
+      _id:     username + '!' + sanitize(title),
+      title:   title,
       owner:   username,
       depends: [],
       path:    saveLoc
@@ -42,11 +44,13 @@ module.exports = function (cfg) {
       },
       function updateUser (currentUser, done) {
 
+        var sanitizedTitle = sanitize(title);
+
         // Add the story if it's unlisted
 
-        if (!currentUser.stories[title]) {
+        if (!currentUser.stories[sanitizedTitle]) {
 
-          currentUser.stories[title] = true;
+          currentUser.stories[sanitizedTitle] = true;
 
           usersdb.insert(currentUser, function (err) {
 
@@ -307,6 +311,59 @@ module.exports = function (cfg) {
 
     });
 
+  };
+
+  model.list = function (username, cb) {
+
+    var jobs = [
+      function getStoryKeys (done) {
+        var dbKey = 'org.couchdb.user:' + username;
+
+        usersdb.get(dbKey, function (err, userDoc) {
+
+          if (err) return done(err);
+
+          var keyList = Object
+            .keys(userDoc.stories)
+            .map(function (title) {
+              var storyKey = username + '!' + title;
+
+              return storyKey;
+            });
+
+          done(null, keyList);
+
+        });
+
+      },
+      function fetchTitles (keys, done) {
+
+        db.fetch({ keys: keys }, function (err, stories) {
+
+          if (err) return done(err);
+
+          var list = stories.rows.map(function (row) {
+
+            return {
+              title: row.doc.title
+            };
+
+          });
+
+          done(null, list);
+
+        });
+
+      }
+    ];
+
+    async.waterfall(jobs, function (err, list) {
+
+      if (err) return cb(err);
+
+      cb(null, list);
+
+    });
   };
 
   return model;

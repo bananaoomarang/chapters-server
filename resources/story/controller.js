@@ -120,24 +120,16 @@ module.exports = function (cfg) {
 
   // Return an array of stories by current user
   controller.list = function (req, reply) {
-    // var credentials = req.auth.credentials;
+    var credentials = req.auth.credentials;
 
-    var list = [
-      {
-        title: 'Love and Justice in Montana'
-      },
-      {
-        title: 'Visions of Tel Aviv'
-      },
-      {
-        title: 'Polterguests of beverly Hills'
-      },
-      {
-        title: 'The Mystery of the Never Letting On'
-      }
-    ];
+    story.list(credentials.name, function (err, list) {
 
-    reply(null, list);
+      if (err) return reply( Boom.wrap(err) );
+
+      reply(null, list);
+
+    });
+
   };
 
   controller.destroy = function (req, reply) {
