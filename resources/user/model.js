@@ -7,7 +7,7 @@ module.exports = function (cfg) {
   var authenticate = require('../../lib/authentication')(cfg);
 
   var model = {};
-  var db    = cfg.userdb;
+  var db    = cfg.usersdb;
 
   model.add = function (user, cb) {
 
@@ -19,7 +19,8 @@ module.exports = function (cfg) {
       name:     user.username,
       type:     'user',
       roles:    [],
-      password: user.password
+      password: user.password,
+      stories:  {}
     };
 
     db.insert(doc, function couchInsert (err, body) {

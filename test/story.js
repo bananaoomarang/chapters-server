@@ -95,6 +95,21 @@ lab.experiment('story', function () {
 
   });
 
+  lab.test('user owns story', function (done) {
+    app
+      .get('/user/' + user.username)
+      .end(function (err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc.stories[story.name]).to.be.true();
+
+        done();
+      });
+  });
+
   lab.test('get story', function (done) {
 
     app
@@ -129,6 +144,21 @@ lab.experiment('story', function () {
 
       });
 
+  });
+
+  lab.test('user doesn\'t own story', function (done) {
+    app
+      .get('/user/' + user.username)
+      .end(function (err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc.stories[story.name]).to.be.undefined();
+
+        done();
+      });
   });
 
   lab.after(function (done) {

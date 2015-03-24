@@ -7,8 +7,9 @@ var async  = require('async');
 var marked = require('marked');
 
 module.exports = function (cfg) {
-  var model = {};
-  var db    = cfg.storiesdb;
+  var model   = {};
+  var db      = cfg.storiesdb;
+  var usersdb = cfg.usersdb;
 
   model.save = function (username, text, title, cb) {
 
@@ -22,7 +23,49 @@ module.exports = function (cfg) {
       path:    saveLoc
     };
 
-    var jobs = [
+    // Add story to user
+    var updateUser = [
+      function getUser (done) {
+        var dbKey = 'org.couchdb.user:' + username;
+
+        /* eslint-disable camelcase */
+
+        usersdb.get(dbKey, { revs_info: true  }, function (err, currentUser) {
+
+        /* eslint-enable camelcase */
+
+          if (err) return done(err);
+
+          return done(null, currentUser);
+
+        });
+      },
+      function updateUser (currentUser, done) {
+
+        // Add the story if it's unlisted
+
+        if (!currentUser.stories[title]) {
+
+          currentUser.stories[title] = true;
+
+          usersdb.insert(currentUser, function (err) {
+
+            if (err) return done(err);
+
+            done();
+
+          });
+
+        } else {
+
+          done();
+
+        }
+
+      }
+    ];
+
+    var saveStory = [
       function mkdirp (done) {
         fs.mkdir(saveDir, function (err) {
 
@@ -57,13 +100,35 @@ module.exports = function (cfg) {
       }
     ];
 
-    async.parallel(jobs, function (err) {
+    async.parallel([
+      function (done) {
+
+        async.waterfall(updateUser, function (err) {
+          if (err) return done(err);
+
+          done();
+        });
+
+      },
+      function (done) {
+
+        async.parallel(saveStory, function (err) {
+          if (err) return done(err);
+
+          done();
+        });
+
+      }
+    ], function asyncFinished (err) {
+
       if (err) return cb(err);
 
       debug('Successfully saved %s', title);
 
       cb();
+
     });
+
   };
 
   model.get = function (username, title, parse, cb) {
@@ -138,15 +203,47 @@ module.exports = function (cfg) {
   model.destroy = function (username, title, cb) {
     debug('removing story: %s', title);
 
-    var dbKey = [username, title].join('!');
+    var storyDbKey = [username, title].join('!');
 
-    var jobs = [
+    // Add story to user
+    var updateUser = [
+      function getUser (done) {
+        var dbKey = 'org.couchdb.user:' + username;
+
+        /* eslint-disable camelcase */
+
+        usersdb.get(dbKey, { revs_info: true  }, function (err, currentUser) {
+
+        /* eslint-enable camelcase */
+
+          if (err) return done(err);
+
+          return done(null, currentUser);
+
+        });
+      },
+      function updateUser (currentUser, done) {
+
+        delete currentUser.stories[title];
+
+        usersdb.insert(currentUser, function (err) {
+
+          if (err) return done(err);
+
+          done();
+
+        });
+
+      }
+    ];
+
+    var removeStory = [
 
       function getLatestRevision (done) {
 
         /* eslint-disable camelcase */
 
-        db.get(dbKey, { revs_info: true  }, function (err, doc) {
+        db.get(storyDbKey, { revs_info: true  }, function (err, doc) {
 
         /* eslint-enable camelcase */
 
@@ -168,7 +265,7 @@ module.exports = function (cfg) {
 
       function deleteFromDb (doc, done) {
 
-        db.destroy(dbKey, doc._rev, function (err, body) {
+        db.destroy(storyDbKey, doc._rev, function (err, body) {
 
           if (err) return done(err);
 
@@ -179,11 +276,34 @@ module.exports = function (cfg) {
 
     ];
 
-    async.waterfall(jobs, function asyncFinished (err, result) {
+    async.parallel([
+
+      function (done) {
+        async.waterfall(updateUser, function (err, result) {
+
+          if (err) return done(err);
+
+          done(null, result);
+
+        });
+      },
+      function (done) {
+        async.waterfall(removeStory, function (err, result) {
+
+          if (err) return done(err);
+
+          done(null, result);
+
+        });
+      }
+
+    ], function asyncFinished (err) {
 
       if (err) return cb(err);
 
-      return cb(null, result);
+      debug('Successfully saved %s', title);
+
+      return cb(null);
 
     });
 
