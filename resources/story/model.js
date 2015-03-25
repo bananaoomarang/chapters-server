@@ -316,6 +316,7 @@ module.exports = function (cfg) {
   model.list = function (username, cb) {
 
     var jobs = [
+
       function getStoryKeys (done) {
         var dbKey = 'org.couchdb.user:' + username;
 
@@ -344,7 +345,10 @@ module.exports = function (cfg) {
 
           var list = stories.rows.map(function (row) {
 
+            var id = row.id.split('!')[1];
+
             return {
+              id:    id,
               title: row.doc.title
             };
 
