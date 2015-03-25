@@ -85,15 +85,39 @@ module.exports = function (cfg) {
 
         });
       },
+
       function toDisk (done) {
         fs.writeFile(saveLoc, text, function (err) {
           if (err) return done(err);
 
-          done(null, 'File saved successfully');
+          done(null);
         });
       },
 
-      function toDB (done) {
+      function getForUpdate (done) {
+        /* eslint-disable camelcase */
+
+        db.get(doc._id, { revs_info: true }, function (err, serverDoc) {
+
+        /* eslint-disable camelcase */
+
+          if (err) {
+
+            if (err.error === 'not_found') return done(null, null);
+
+            return done(err);
+
+          }
+
+          done(null, serverDoc);
+
+        });
+      },
+
+      function toDB (serverDoc, done) {
+
+        if(serverDoc) doc._rev = serverDoc._rev;
+
         db.insert(doc, function couchInsert (err, body) {
 
           if (err) return done(err);
@@ -116,7 +140,7 @@ module.exports = function (cfg) {
       },
       function (done) {
 
-        async.parallel(saveStory, function (err) {
+        async.waterfall(saveStory, function (err) {
           if (err) return done(err);
 
           done();
@@ -344,6 +368,8 @@ module.exports = function (cfg) {
           if (err) return done(err);
 
           var list = stories.rows.map(function (row) {
+
+            if (row.error) return {};
 
             var id = row.id.split('!')[1];
 
