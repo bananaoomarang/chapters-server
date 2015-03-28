@@ -95,19 +95,23 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('user owns story', function (done) {
+  lab.test('get story', function (done) {
+
     app
-      .get('/user/' + user.username)
+      .get('/story/' + story.name)
+      .set('Authorization', 'Bearer ' + user.token)
+      .expect(200)
       .end(function (err, res) {
 
         if (err) return done(err);
 
-        var doc = res.body;
+        expect(res).to.be.ok;
+        expect(res.text).to.be.string;
 
-        expect(doc.stories[story.name]).to.be.true();
+        done(null);
 
-        done();
       });
+
   });
 
   lab.test('List stories by user', function (done) {
@@ -124,25 +128,8 @@ lab.experiment('story', function () {
 
         var doc = res.body;
 
+        expect(doc).to.be.array;
         expect(doc[0].title).to.equal(story.name);
-
-        done(null);
-
-      });
-
-  });
-
-  lab.test('get story', function (done) {
-
-    app
-      .get('/story/' + story.name)
-      .set('Authorization', 'Bearer ' + user.token)
-      .expect(200)
-      .end(function (err, res) {
-
-        if (err) return done(err);
-
-        expect(res).to.be.ok;
 
         done(null);
 
@@ -166,21 +153,6 @@ lab.experiment('story', function () {
 
       });
 
-  });
-
-  lab.test('user doesn\'t own story', function (done) {
-    app
-      .get('/user/' + user.username)
-      .end(function (err, res) {
-
-        if (err) return done(err);
-
-        var doc = res.body;
-
-        expect(doc.stories[story.name]).to.be.undefined();
-
-        done();
-      });
   });
 
   lab.after(function (done) {

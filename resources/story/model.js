@@ -17,9 +17,10 @@ module.exports = function (cfg) {
 
     var saveLoc = path.join('data', 'stories', username, title);
     var saveDir = path.dirname(saveLoc);
+    var storyId = username + '!' + sanitize(title);
 
     var doc = {
-      _id:     username + '!' + sanitize(title),
+      _id:     storyId,
       title:   title,
       owner:   username,
       depends: [],
@@ -51,66 +52,20 @@ module.exports = function (cfg) {
         });
       },
 
-      function getForUpdate (done) {
-        /* eslint-disable camelcase */
-
-        db.get(doc._id, { revs_info: true }, function (err, serverDoc) {
-
-        /* eslint-disable camelcase */
-
-          if (err) {
-
-            if (err.error === 'not_found') return done(null, null);
-
-            return done(err);
-
-          }
-
-          done(null, serverDoc);
-
-        });
-      },
-
-      function toDB (serverDoc, done) {
-
-        if(serverDoc) doc._rev = serverDoc._rev;
-
-        db.insert(doc, function couchInsert (err, body) {
-
+      function saveStory(done) {
+        updateCouch(storyId, db, doc, function (err) {
           if (err) return done(err);
 
-          done(null, body);
-
+          done();
         });
       }
+
     ];
 
-    async.parallel([
-      function updateUser(done) {
 
-        var userDelta = {
-          stories: {}
-        };
+    async.series(jobs, function asyncFinished (err) {
 
-        userDelta.stories[title] = true;
-
-        updateCouch('org.couchdb.user:' + username, usersdb, userDelta, function (err) {
-          if (err) return done(err);
-
-          done();
-        });
-
-      },
-      function saveStory (done) {
-
-        async.waterfall(jobs, function (err) {
-          if (err) return done(err);
-
-          done();
-        });
-
-      }
-    ], function asyncFinished (err) {
+      console.log(err);
 
       if (err) return cb(err);
 
