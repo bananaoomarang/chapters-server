@@ -261,7 +261,7 @@ module.exports = function (cfg) {
 
       var list = body.rows.map(function (value) {
         return {
-          dbKey: value.id,
+          id:    value.id.split('!')[1],
           title: value.value
         };
       });
