@@ -1,11 +1,12 @@
 'use strict';
 
-var fs       = require('fs');
-var path     = require('path');
-var debug    = require('debug')('story');
-var async    = require('async');
-var marked   = require('marked');
-var sanitize = require('../../lib/sanitizeString');
+var fs          = require('fs');
+var path        = require('path');
+var debug       = require('debug')('story');
+var async       = require('async');
+var marked      = require('marked');
+var sanitize    = require('../../lib/sanitize-string');
+var updateCouch = require('../../lib/update-couch-doc');
 
 module.exports = function (cfg) {
   var model   = {};
@@ -25,51 +26,7 @@ module.exports = function (cfg) {
       path:    saveLoc
     };
 
-    // Add story to user
-    var updateUser = [
-      function getUser (done) {
-        var dbKey = 'org.couchdb.user:' + username;
-
-        /* eslint-disable camelcase */
-
-        usersdb.get(dbKey, { revs_info: true  }, function (err, currentUser) {
-
-        /* eslint-enable camelcase */
-
-          if (err) return done(err);
-
-          return done(null, currentUser);
-
-        });
-      },
-      function updateUser (currentUser, done) {
-
-        var sanitizedTitle = sanitize(title);
-
-        // Add the story if it's unlisted
-
-        if (!currentUser.stories[sanitizedTitle]) {
-
-          currentUser.stories[sanitizedTitle] = true;
-
-          usersdb.insert(currentUser, function (err) {
-
-            if (err) return done(err);
-
-            done();
-
-          });
-
-        } else {
-
-          done();
-
-        }
-
-      }
-    ];
-
-    var saveStory = [
+    var jobs = [
       function mkdirp (done) {
         fs.mkdir(saveDir, function (err) {
 
@@ -129,18 +86,24 @@ module.exports = function (cfg) {
     ];
 
     async.parallel([
-      function (done) {
+      function updateUser(done) {
 
-        async.waterfall(updateUser, function (err) {
+        var userDelta = {
+          stories: {}
+        };
+
+        userDelta.stories[title] = true;
+
+        updateCouch('org.couchdb.user:' + username, usersdb, userDelta, function (err) {
           if (err) return done(err);
 
           done();
         });
 
       },
-      function (done) {
+      function saveStory (done) {
 
-        async.waterfall(saveStory, function (err) {
+        async.waterfall(jobs, function (err) {
           if (err) return done(err);
 
           done();
@@ -233,7 +196,6 @@ module.exports = function (cfg) {
 
     var storyDbKey = [username, title].join('!');
 
-    // Add story to user
     var updateUser = [
       function getUser (done) {
         var dbKey = 'org.couchdb.user:' + username;
@@ -339,61 +301,19 @@ module.exports = function (cfg) {
 
   model.list = function (username, cb) {
 
-    var jobs = [
-
-      function getStoryKeys (done) {
-        var dbKey = 'org.couchdb.user:' + username;
-
-        usersdb.get(dbKey, function (err, userDoc) {
-
-          if (err) return done(err);
-
-          var keyList = Object
-            .keys(userDoc.stories)
-            .map(function (title) {
-              var storyKey = username + '!' + title;
-
-              return storyKey;
-            });
-
-          done(null, keyList);
-
-        });
-
-      },
-      function fetchTitles (keys, done) {
-
-        db.fetch({ keys: keys }, function (err, stories) {
-
-          if (err) return done(err);
-
-          var list = stories.rows.map(function (row) {
-
-            if (row.error) return {};
-
-            var id = row.id.split('!')[1];
-
-            return {
-              id:    id,
-              title: row.doc.title
-            };
-
-          });
-
-          done(null, list);
-
-        });
-
-      }
-    ];
-
-    async.waterfall(jobs, function (err, list) {
-
+    db.view('story', 'byUser', { key: username }, function (err, body) {
       if (err) return cb(err);
 
-      cb(null, list);
+      var list = body.rows.map(function (value) {
+        return {
+          dbKey: value.id,
+          title: value.value
+        };
+      });
 
+      cb(null, list);
     });
+
   };
 
   return model;

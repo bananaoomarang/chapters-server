@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var views = require('../lib/couch-views');
+
+views.init();

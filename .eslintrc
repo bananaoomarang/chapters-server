@@ -7,10 +7,8 @@
     "jsx": true
   },
   "globals": {
-    "$": true,
     "window": true,
-    "API": true,
-    "io": true
+    "emit":   true
   },
   "rules": {
     // Ignore Rules
