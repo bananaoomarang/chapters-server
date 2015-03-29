@@ -11,7 +11,6 @@ var updateCouch = require('../../lib/update-couch-doc');
 module.exports = function (cfg) {
   var model   = {};
   var db      = cfg.storiesdb;
-  var usersdb = cfg.usersdb;
 
   model.save = function (username, text, title, cb) {
 
@@ -151,37 +150,6 @@ module.exports = function (cfg) {
 
     var storyDbKey = [username, title].join('!');
 
-    var updateUser = [
-      function getUser (done) {
-        var dbKey = 'org.couchdb.user:' + username;
-
-        /* eslint-disable camelcase */
-
-        usersdb.get(dbKey, { revs_info: true  }, function (err, currentUser) {
-
-        /* eslint-enable camelcase */
-
-          if (err) return done(err);
-
-          return done(null, currentUser);
-
-        });
-      },
-      function updateUser (currentUser, done) {
-
-        delete currentUser.stories[title];
-
-        usersdb.insert(currentUser, function (err) {
-
-          if (err) return done(err);
-
-          done();
-
-        });
-
-      }
-    ];
-
     var removeStory = [
 
       function getLatestRevision (done) {
@@ -221,34 +189,11 @@ module.exports = function (cfg) {
 
     ];
 
-    async.parallel([
-
-      function (done) {
-        async.waterfall(updateUser, function (err, result) {
-
-          if (err) return done(err);
-
-          done(null, result);
-
-        });
-      },
-      function (done) {
-        async.waterfall(removeStory, function (err, result) {
-
-          if (err) return done(err);
-
-          done(null, result);
-
-        });
-      }
-
-    ], function asyncFinished (err) {
+    async.waterfall(removeStory, function (err, result) {
 
       if (err) return cb(err);
 
-      debug('Successfully saved %s', title);
-
-      return cb(null);
+      cb(null, result);
 
     });
 

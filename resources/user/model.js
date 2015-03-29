@@ -19,8 +19,7 @@ module.exports = function (cfg) {
       name:     user.username,
       type:     'user',
       roles:    [],
-      password: user.password,
-      stories:  {}
+      password: user.password
     };
 
     db.insert(doc, function couchInsert (err, body) {
