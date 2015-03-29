@@ -20,7 +20,7 @@ lab.experiment('story', function () {
   };
 
   var user = {
-    username: 'testuser',
+    username: 'testuser-story',
     password: 'password',
     token:    ''
   };

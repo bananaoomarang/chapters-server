@@ -61,6 +61,16 @@ module.exports = function (cfg) {
 
   };
 
+  controller.update = function (req, reply) {
+
+    user.update(req.auth.credentials.name, req.payload, function(err) {
+      if (err) return reply( Boom.wrap(err) );
+
+      reply('Successfully updated');
+    });
+
+  };
+
   controller.list = function (req, reply) {
 
     user.list(function getUserList (err, body) {
@@ -94,6 +104,13 @@ module.exports = function (cfg) {
       return reply(body);
 
     });
+
+  };
+
+  // This just serves as a quick token test
+  controller.validate = function (req, reply) {
+
+    reply('You\'re good to go!');
 
   };
 

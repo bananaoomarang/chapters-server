@@ -1,7 +1,8 @@
 'use strict';
 
-var async = require('async');
-var debug = require('debug')('accounts');
+var async       = require('async');
+var debug       = require('debug')('accounts');
+var updateCouch = require('../../lib/update-couch-doc');
 
 module.exports = function (cfg) {
   var authenticate = require('../../lib/authentication')(cfg);
@@ -13,12 +14,12 @@ module.exports = function (cfg) {
 
     debug('creating %s', user.username);
 
-    // TODO joi validate
     var doc = {
       _id:      'org.couchdb.user:' + user.username,
       name:     user.username,
       type:     'user',
       roles:    [],
+      scope:    [],
       password: user.password
     };
 
@@ -30,6 +31,21 @@ module.exports = function (cfg) {
 
     });
 
+  };
+
+  model.update = function (username, delta, cb) {
+
+    debug('updating: %s', username);
+
+    updateCouch('org.couchdb.user:' + username, db, delta, function (err) {
+
+      console.log(err);
+
+      if (err) return cb(err);
+
+      cb();
+
+    });
   };
 
   model.destroy = function (username, cb) {

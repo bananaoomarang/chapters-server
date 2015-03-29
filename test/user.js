@@ -14,8 +14,9 @@ var app    = supertest('http://localhost:8888');
 lab.experiment('user', function () {
 
   var user = {
-    username: 'testuser',
-    password: 'password'
+    username: 'testuser-user',
+    password: 'password',
+    token:    ''
   };
 
   var userForRegistration = {
@@ -45,7 +46,7 @@ lab.experiment('user', function () {
         var doc = res.body;
 
         expect(doc.ok).to.be.true();
-        expect(doc.id).to.equal('org.couchdb.user:testuser');
+        expect(doc.id).to.equal('org.couchdb.user:' + user.username);
 
         done(null);
 
@@ -89,6 +90,51 @@ lab.experiment('user', function () {
 
         expect(doc).to.be.string();
 
+        user.token = doc;
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('Validate totken', function (done) {
+
+    app
+      .get('/user/validate')
+      .set('Authorization', 'Bearer ' + user.token)
+      .expect(200)
+      .end(function(err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc).to.be.object();
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('Update user', function (done) {
+
+    app
+      .put('/user/' + user.username)
+      .set('Authorization', 'Bearer ' + user.token)
+      .set('Accept', 'application/json')
+      .send({ scope: ['god']})
+      .expect('Content-Type', 'text/html; charset=utf-8')
+      .expect(200)
+      .end(function(err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc).to.be.object();
+
         done(null);
 
       });
@@ -99,6 +145,7 @@ lab.experiment('user', function () {
 
     app
       .get('/user/' + user.username)
+      .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
@@ -120,6 +167,7 @@ lab.experiment('user', function () {
 
     app
       .get('/user')
+      .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
@@ -140,7 +188,8 @@ lab.experiment('user', function () {
   lab.test('Delete user', function (done) {
 
     app
-      .delete('/user/' + user.username)
+      .del('/user/' + user.username)
+      .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
