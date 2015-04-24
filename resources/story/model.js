@@ -5,6 +5,7 @@ var path        = require('path');
 var debug       = require('debug')('story');
 var async       = require('async');
 var marked      = require('marked');
+var mkdirp      = require('mkdirp');
 var sanitize    = require('../../lib/sanitize-string');
 var updateCouch = require('../../lib/update-couch-doc');
 
@@ -27,10 +28,10 @@ module.exports = function (cfg) {
     };
 
     var jobs = [
-      function mkdirp (done) {
-        fs.mkdir(saveDir, function (err) {
+      function createDirectory (done) {
+        mkdirp(saveDir, function (err) {
 
-          if (err && err.code !== 'EEXIST') {
+          if (err) {
 
             done(err);
 

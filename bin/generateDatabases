@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+
+'use strict';
+
+var nano = require('nano')('http://localhost:5984');
+
+nano.db.create('stories', function (err, body) {
+  if (!err) console.log('Database \'stories\' created.');
+  else console.log(err);
+});
