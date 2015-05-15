@@ -1,11 +1,11 @@
 'use strict';
 
-var Boom       = require('boom');
-var Joi        = require('joi');
+var Boom        = require('boom');
+var Joi         = require('joi');
 var userSchema = require('../../lib/schemas').user;
 
 module.exports = function (cfg) {
-  var user         = require('./model')(cfg);
+  var users         = require('./model')(cfg);
 
   var controller   = {};
 
@@ -17,7 +17,7 @@ module.exports = function (cfg) {
       if (err) return reply(Boom.wrap(err));
     });
 
-    user.add(newUser, function confirmUserAdded (err, body) {
+    users.add(newUser, function confirmUserAdded (err, body) {
 
       if (err) {
 
@@ -40,7 +40,7 @@ module.exports = function (cfg) {
 
     var credentials = req.payload;
 
-    user.getToken(credentials, function (err, token) {
+    users.getToken(credentials, function (err, token) {
 
       if (err) {
 
@@ -63,7 +63,7 @@ module.exports = function (cfg) {
 
   controller.update = function (req, reply) {
 
-    user.update(req.auth.credentials.name, req.payload, function(err) {
+    users.update(req.auth.credentials.name, req.payload, function(err) {
       if (err) return reply( Boom.wrap(err) );
 
       reply('Successfully updated');
@@ -73,7 +73,7 @@ module.exports = function (cfg) {
 
   controller.list = function (req, reply) {
 
-    user.list(function getUserList (err, body) {
+    users.list(function getUserList (err, body) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -85,7 +85,7 @@ module.exports = function (cfg) {
 
   controller.get = function (req, reply) {
 
-    user.get(req.params.name, function getUser (err, body) {
+    users.get(req.params.name, function getUser (err, body) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -97,7 +97,7 @@ module.exports = function (cfg) {
 
   controller.destroy = function (req, reply) {
 
-    user.destroy(req.params.name, function removeUser (err, body) {
+    users.destroy(req.params.name, function removeUser (err, body) {
 
       if (err) return reply( Boom.wrap(err) );
 

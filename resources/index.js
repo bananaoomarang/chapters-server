@@ -2,7 +2,7 @@
 
 module.exports = function (cfg) {
   return {
-    user:  require('./user/controller')(cfg),
-    story: require('./story/controller')(cfg)
+    users:   require('./users/controller')(cfg),
+    stories: require('./stories/controller')(cfg)
   };
 };

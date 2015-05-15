@@ -13,7 +13,7 @@ function trimExtension (filename) {
 
 module.exports = function (cfg) {
   var controller = {};
-  var story      = require('./model')(cfg);
+  var stories      = require('./model')(cfg);
 
   controller.get = function (req, reply) {
 
@@ -33,7 +33,7 @@ module.exports = function (cfg) {
         break;
     }
 
-    story.get(username, req.params.title, parse, function (err, text) {
+    stories.get(username, req.params.title, parse, function (err, text) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -75,6 +75,7 @@ module.exports = function (cfg) {
         title = obj.title;
 
         text  = obj.text;
+
       };
 
     }
@@ -97,7 +98,7 @@ module.exports = function (cfg) {
       },
 
       function saveData (done) {
-        story.save(username, text, title, function (err) {
+        stories.save(username, text, title, function (err) {
 
           if (err) return done(err);
 
@@ -111,7 +112,7 @@ module.exports = function (cfg) {
 
       if (err) return reply( Boom.wrap(err) );
 
-      return reply('Successfully saved story')
+      return reply('Successfully saved stories')
         .code(201);
 
     });
@@ -122,7 +123,7 @@ module.exports = function (cfg) {
   controller.list = function (req, reply) {
     var credentials = req.auth.credentials;
 
-    story.list(credentials.name, function (err, list) {
+    stories.list(credentials.name, function (err, list) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -136,7 +137,7 @@ module.exports = function (cfg) {
     var username = req.auth.credentials.name;
     var title    = req.params.title;
 
-    story.destroy(username, title, function (err) {
+    stories.destroy(username, title, function (err) {
 
       if (err) return reply( Boom.wrap(err) );
 

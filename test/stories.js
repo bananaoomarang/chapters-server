@@ -43,7 +43,7 @@ lab.experiment('story', function () {
       },
       function createUser(cb) {
         app
-          .post('/user/create')
+          .post('/users/create')
           .send(userForRegistration)
           .set('Accept', 'application/json')
           .end(function(err) {
@@ -56,7 +56,7 @@ lab.experiment('story', function () {
       },
       function getToken(cb) {
         app
-          .post('/user/login')
+          .post('/users/login')
           .send(user)
           .end(function (err, res) {
 
@@ -79,7 +79,7 @@ lab.experiment('story', function () {
 
   lab.test('upload story', function (done) {
     app
-      .post('/story/upload')
+      .post('/stories/upload')
       .attach('file', story.path)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(201)
@@ -98,7 +98,7 @@ lab.experiment('story', function () {
   lab.test('get story', function (done) {
 
     app
-      .get('/story/' + story.name)
+      .get('/stories/' + story.name)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -117,7 +117,7 @@ lab.experiment('story', function () {
   lab.test('List stories by user', function (done) {
 
     app
-      .get('/story')
+      .get('/stories')
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -140,7 +140,7 @@ lab.experiment('story', function () {
   lab.test('delete story', function (done) {
 
     app
-      .delete('/story/' + story.name)
+      .delete('/stories/' + story.name)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -158,7 +158,7 @@ lab.experiment('story', function () {
   lab.after(function (done) {
 
     app
-      .delete('/user/' + user.username)
+      .delete('/users/' + user.username)
       .set('Accept', 'application/json')
       .end(function(deleteErr) {
 

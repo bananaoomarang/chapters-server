@@ -34,7 +34,7 @@ lab.experiment('user', function () {
   lab.test('Create user', function (done) {
 
     app
-      .post('/user/create')
+      .post('/users/create')
       .send(userForRegistration)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
@@ -57,7 +57,7 @@ lab.experiment('user', function () {
   lab.test('Attempt login with non-existant user', function (done) {
 
     app
-      .post('/user/login')
+      .post('/users/login')
       .send({ username: 'whereami', password: user.password })
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(401)
@@ -78,7 +78,7 @@ lab.experiment('user', function () {
   lab.test('Login user', function (done) {
 
     app
-      .post('/user/login')
+      .post('/users/login')
       .send(user)
       .expect('Content-Type', 'text/html; charset=utf-8')
       .expect(200)
@@ -101,7 +101,7 @@ lab.experiment('user', function () {
   lab.test('Validate totken', function (done) {
 
     app
-      .get('/user/validate')
+      .get('/users/validate')
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function(err, res) {
@@ -121,7 +121,7 @@ lab.experiment('user', function () {
   lab.test('Update user', function (done) {
 
     app
-      .put('/user/' + user.username)
+      .put('/users/' + user.username)
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .send({ scope: ['god']})
@@ -144,7 +144,7 @@ lab.experiment('user', function () {
   lab.test('Get user', function (done) {
 
     app
-      .get('/user/' + user.username)
+      .get('/users/' + user.username)
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
@@ -166,7 +166,7 @@ lab.experiment('user', function () {
   lab.test('List users', function (done) {
 
     app
-      .get('/user')
+      .get('/users')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
@@ -188,7 +188,7 @@ lab.experiment('user', function () {
   lab.test('Delete user', function (done) {
 
     app
-      .del('/user/' + user.username)
+      .del('/users/' + user.username)
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')

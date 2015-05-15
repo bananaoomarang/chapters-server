@@ -2,7 +2,7 @@
 
 var fs          = require('fs');
 var path        = require('path');
-var debug       = require('debug')('story');
+var debug       = require('debug')('stories');
 var async       = require('async');
 var marked      = require('marked');
 var mkdirp      = require('mkdirp');
@@ -64,8 +64,6 @@ module.exports = function (cfg) {
 
 
     async.series(jobs, function asyncFinished (err) {
-
-      console.log(err);
 
       if (err) return cb(err);
 
