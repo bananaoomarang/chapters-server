@@ -1,7 +1,10 @@
 'use strict';
 
-var Boom  = require('boom');
-var async = require('async');
+var Boom        = require('boom');
+var async       = require('async');
+var uuid        = require('uuid');
+//var Joi         = require('joi');
+//var storySchema = require('../../lib/schemas').story;
 
 function trimExtension (filename) {
   var split = filename.split('.');
@@ -18,6 +21,7 @@ module.exports = function (cfg) {
   controller.get = function (req, reply) {
 
     var username = req.auth.credentials.name;
+    var id       = req.params.id;
 
     // Parse markdown by default
     var parse = true;
@@ -33,7 +37,7 @@ module.exports = function (cfg) {
         break;
     }
 
-    stories.get(username, req.params.title, parse, function (err, text) {
+    stories.get(username, id, parse, function (err, text) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -43,42 +47,74 @@ module.exports = function (cfg) {
 
   };
 
+  controller.edit = function (req, reply) {
+    var username = req.auth.credentials.name;
+    var id       = req.params.id;
+    var text     = req.payload.text;
+
+    var jobs = [
+      function checkExistance (done) {
+        stories.get(username, id, false, function (err) {
+
+          if (err) return done(err);
+
+          return done(null);
+
+        });
+      },
+
+      function updateStory (done) {
+        stories.save(username, id, null, text, function (err) {
+
+          if (err) return done(err);
+
+          return done(null);
+
+        });
+      }
+    ];
+
+    async.series(jobs, function (err) {
+      if (err) {
+
+        if(err.error === 'not_found') return reply( Boom.notFound(err) );
+
+        return reply( Boom.wrap(err) );
+      }
+
+      return reply(null, { id: id });
+    });
+
+  };
+
+  // Receive JSON payload from our editor
+  controller.import = function (req, reply) {
+    var payload  = req.payload;
+    var username = req.auth.credentials.name;
+    var key      = payload.id || uuid.v4();
+    var title    = payload.title;
+    var text     = payload.text;
+
+    stories.save(username, key, title, text, function (err) {
+
+      if (err) return reply(Boom.wrap(err));
+
+      return reply(null, { id: key })
+        .code(201);
+
+    });
+  };
+
+  // Multipart file upload
   controller.upload = function (req, reply) {
 
     var payload = req.payload;
 
     var username = req.auth.credentials.name;
-    var stream   = null;
-    var handler  = null;
-    var title    = null;
+    var stream   = payload.file;
+    var title    = trimExtension(payload.file.hapi.filename);
+    var key      = uuid.v4();
     var text     = '';
-
-    if(payload.file) {
-
-      // Then it's a multipart file upload
-
-      stream = payload.file;
-
-      handler = function handleFile () {
-        title = trimExtension(payload.file.hapi.filename);
-      };
-
-    } else {
-
-      // Then it's just JSON, but still a stream...
-
-      stream = payload;
-
-      handler = function handleJSON () {
-        var obj = JSON.parse(text);
-
-        title = obj.title;
-
-        text  = obj.text;
-
-      };
-
-    }
 
     var jobs = [
       function parseStream (done) {
@@ -90,15 +126,13 @@ module.exports = function (cfg) {
           reply( Boom.wrap(err) );
         })
         .on('end', function () {
-          handler();
-
           done();
         });
 
       },
 
       function saveData (done) {
-        stories.save(username, text, title, function (err) {
+        stories.save(username, key, title, text, function (err) {
 
           if (err) return done(err);
 
@@ -112,18 +146,18 @@ module.exports = function (cfg) {
 
       if (err) return reply( Boom.wrap(err) );
 
-      return reply('Successfully saved stories')
+      return reply(null, { id: key })
         .code(201);
 
     });
 
   };
 
-  // Return an array of stories by current user
+  // Can search beased on query, reply with array of IDs
   controller.list = function (req, reply) {
-    var credentials = req.auth.credentials;
+    var query       = req.query;
 
-    stories.list(credentials.name, function (err, list) {
+    stories.list(query.title, function (err, list) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -134,10 +168,10 @@ module.exports = function (cfg) {
   };
 
   controller.destroy = function (req, reply) {
-    var username = req.auth.credentials.name;
-    var title    = req.params.title;
+    var id       = req.params.id;
 
-    stories.destroy(username, title, function (err) {
+    // TODO Authenticate here
+    stories.destroy(id, function (err) {
 
       if (err) return reply( Boom.wrap(err) );
 

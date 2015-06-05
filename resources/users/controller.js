@@ -95,8 +95,11 @@ module.exports = function (cfg) {
 
   };
 
-  controller.destroy = function (req, reply) {
+  controller.getStories = function (req, reply) {
+    return reply(404);
+  };
 
+  controller.destroy = function (req, reply) {
     users.destroy(req.params.name, function removeUser (err, body) {
 
       if (err) return reply( Boom.wrap(err) );

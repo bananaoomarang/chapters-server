@@ -2,21 +2,24 @@
 
 /* eslint-disable no-unused-expressions */
 
-var Lab       = require('lab');
-var Code      = require('code');
-var supertest = require('supertest');
-var async     = require('async');
-var server    = require('../');
+var Lab          = require('lab');
+var Code         = require('code');
+var supertest    = require('supertest');
+var async        = require('async');
+var server       = require('../');
+var storyFixture = require('./fixtures/story.json');
 
 var lab    = exports.lab = Lab.script();
 var expect = Code.expect;
 var app    = supertest('http://localhost:8888');
 
+
 lab.experiment('story', function () {
 
-  var story = {
+  var storyFromDisk = {
+    id:   null,
     name: 'mock-story',
-    path: 'test/fixtures/mock-story.md'
+    path: 'test/fixtures/story.md'
   };
 
   var user = {
@@ -75,12 +78,14 @@ lab.experiment('story', function () {
 
       done(null);
     });
+
   });
 
-  lab.test('upload story', function (done) {
+  lab.test('Create story by uploading markdown file', function (done) {
+
     app
       .post('/stories/upload')
-      .attach('file', story.path)
+      .attach('file', storyFromDisk.path)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(201)
       .end(function (err, res) {
@@ -88,6 +93,9 @@ lab.experiment('story', function () {
         if (err) return done(err);
 
         expect(res).to.be.ok;
+        expect(res.body.id);
+
+        storyFromDisk.id = res.body.id;
 
         done(null);
 
@@ -95,10 +103,78 @@ lab.experiment('story', function () {
 
   });
 
+  lab.test('Create story from JSON (ie, exported from frontend editor)', function (done) {
+
+    storyFixture.title = 'Not the Old One';
+
+    app
+      .post('/stories/import')
+      .set('Authorization', 'Bearer ' + user.token)
+      .set('Accept', 'application/json')
+      .send(storyFixture)
+      .expect(201)
+      .end(function (err, res) {
+
+        if (err) return done(err);
+
+        expect(res).to.be.ok;
+        expect(res.body.id);
+
+        // TODO  Dirty.
+        storyFixture.id = res.body.id;
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('edit non-existing story', function (done) {
+
+    app
+      .post('/stories/fake_id')
+      .set('Authorization', 'Bearer ' + user.token)
+      .set('Accept', 'application/json')
+      .send(storyFixture)
+      .expect(404)
+      .end(function (err, res) {
+
+        if (err) return done(err);
+
+        expect(res).not.to.be.ok;
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('edit story', function (done) {
+
+    app
+      .post('/stories/' + storyFixture.id)
+      .set('Authorization', 'Bearer ' + user.token)
+      .set('Accept', 'application/json')
+      .send(storyFixture)
+      .expect(200)
+      .end(function (err, res) {
+
+        if (err) return done(err);
+
+        expect(res).to.be.ok;
+        expect(res.body.id);
+
+        done(null);
+
+      });
+
+  });
+
+
   lab.test('get story', function (done) {
 
     app
-      .get('/stories/' + story.name)
+      .get('/stories/' + storyFixture.id)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -114,10 +190,10 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('List stories by user', function (done) {
+  lab.test('List stories by title', function (done) {
 
     app
-      .get('/stories')
+      .get('/stories?title=' + storyFixture.title)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -129,7 +205,7 @@ lab.experiment('story', function () {
         var doc = res.body;
 
         expect(doc).to.be.array;
-        expect(doc[0].title).to.equal(story.name);
+        expect(doc[0].title).to.equal(storyFixture.title);
 
         done(null);
 
@@ -140,7 +216,7 @@ lab.experiment('story', function () {
   lab.test('delete story', function (done) {
 
     app
-      .delete('/stories/' + story.name)
+      .delete('/stories/' + storyFromDisk.id)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -156,9 +232,26 @@ lab.experiment('story', function () {
   });
 
   lab.after(function (done) {
+    // TODO multiple story delete should be part of test
+    app
+      .del('/stories/' + storyFixture.id)
+      .set('Authorization', 'Bearer ' + user.token)
+      .expect(200)
+      .end(function (err, res) {
+        if (err) return done(err);
+
+        expect(res).to.be.ok;
+
+        done(null);
+
+      });
+  });
+
+  lab.after(function (done) {
 
     app
-      .delete('/users/' + user.username)
+      .del('/users/' + user.username)
+      .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .end(function(deleteErr) {
 
@@ -171,7 +264,5 @@ lab.experiment('story', function () {
         });
 
       });
-
   });
-
 });

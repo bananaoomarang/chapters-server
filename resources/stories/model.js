@@ -6,26 +6,25 @@ var debug       = require('debug')('stories');
 var async       = require('async');
 var marked      = require('marked');
 var mkdirp      = require('mkdirp');
-var sanitize    = require('../../lib/sanitize-string');
 var updateCouch = require('../../lib/update-couch-doc');
 
 module.exports = function (cfg) {
   var model   = {};
   var db      = cfg.storiesdb;
 
-  model.save = function (username, text, title, cb) {
+  model.save = function (username, key, title, text, cb) {
 
-    var saveLoc = path.join('data', 'stories', username, title);
+    var saveLoc = path.join('data', 'stories', username, key);
     var saveDir = path.dirname(saveLoc);
-    var storyId = username + '!' + sanitize(title);
 
     var doc = {
-      _id:     storyId,
-      title:   title,
+      _id:     key,
       owner:   username,
       depends: [],
       path:    saveLoc
     };
+
+    if(title) doc.title = title;
 
     var jobs = [
       function createDirectory (done) {
@@ -50,10 +49,11 @@ module.exports = function (cfg) {
 
           done(null);
         });
+
       },
 
       function saveStory(done) {
-        updateCouch(storyId, db, doc, function (err) {
+        updateCouch(key, db, doc, function (err) {
           if (err) return done(err);
 
           done();
@@ -75,14 +75,12 @@ module.exports = function (cfg) {
 
   };
 
-  model.get = function (username, title, parse, cb) {
+  model.get = function (username, id, parse, cb) {
 
     var jobs = [
 
       function fetchFromDb (done) {
-        var key = [username, title].join('!');
-
-        db.get(key, function (err, doc) {
+        db.get(id, function (err, doc) {
 
           if (err) return done(err);
 
@@ -144,10 +142,8 @@ module.exports = function (cfg) {
 
   };
 
-  model.destroy = function (username, title, cb) {
-    debug('removing story: %s', title);
-
-    var storyDbKey = [username, title].join('!');
+  model.destroy = function (id, cb) {
+    debug('removing story: %s', id);
 
     var removeStory = [
 
@@ -155,7 +151,7 @@ module.exports = function (cfg) {
 
         /* eslint-disable camelcase */
 
-        db.get(storyDbKey, { revs_info: true  }, function (err, doc) {
+        db.get(id, { revs_info: true  }, function (err, doc) {
 
         /* eslint-enable camelcase */
 
@@ -177,7 +173,7 @@ module.exports = function (cfg) {
 
       function deleteFromDb (doc, done) {
 
-        db.destroy(storyDbKey, doc._rev, function (err, body) {
+        db.destroy(id, doc._rev, function (err, body) {
 
           if (err) return done(err);
 
@@ -198,9 +194,26 @@ module.exports = function (cfg) {
 
   };
 
-  model.list = function (username, cb) {
+  model.list = function (title, cb) {
 
-    db.view('story', 'byUser', { key: username }, function (err, body) {
+    db.view('story', 'byTitle', { key: title }, function (err, body) {
+      if (err) return cb(err);
+
+      var list = body.rows.map(function (value) {
+        return {
+          id:    value.id,
+          title: value.value.title
+        };
+      });
+
+      cb(null, list);
+    });
+
+  };
+
+  model.search = function (author, title, cb) {
+
+    db.view('story', 'byUser', { key: author }, function (err, body) {
       if (err) return cb(err);
 
       var list = body.rows.map(function (value) {

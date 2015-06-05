@@ -1,4 +1,4 @@
-Hapi server for Chapters.
+Hapi API server for Chapters.
 
 ## Setup ##
 

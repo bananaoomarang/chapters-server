@@ -39,8 +39,6 @@ module.exports = function (cfg) {
 
     updateCouch('org.couchdb.user:' + username, db, delta, function (err) {
 
-      console.log(err);
-
       if (err) return cb(err);
 
       cb();
