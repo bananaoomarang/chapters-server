@@ -133,7 +133,7 @@ lab.experiment('user', function () {
 
         var doc = res.body;
 
-        expect(doc).to.be.object();
+        expect(doc).to.be.ok;
 
         done(null);
 
@@ -156,6 +156,28 @@ lab.experiment('user', function () {
         var doc = res.body;
 
         expect(doc).to.be.object();
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('List user\'s stories', function (done) {
+
+    app
+      .get('/users/' + user.username + '/stories')
+      .set('Authorization', 'Bearer ' + user.token)
+      .set('Accept', 'application/json')
+      .expect('Content-Type', 'application/json; charset=utf-8')
+      .expect(200)
+      .end(function(err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc).to.be.array();
 
         done(null);
 

@@ -1,14 +1,15 @@
 'use strict';
 
 var async       = require('async');
-var debug       = require('debug')('accounts');
+var debug       = require('debug')('users');
 var updateCouch = require('../../lib/update-couch-doc');
 
 module.exports = function (cfg) {
   var authenticate = require('../../lib/authentication')(cfg);
 
-  var model = {};
-  var db    = cfg.usersdb;
+  var model     = {};
+  var db        = cfg.usersdb;
+  var storiesdb = cfg.storiesdb;
 
   model.add = function (user, cb) {
 
@@ -102,6 +103,26 @@ module.exports = function (cfg) {
 
       cb(null, body);
 
+    });
+
+  };
+
+  model.getStories = function (username, userToList, cb) {
+
+    debug('getting stories for %s', userToList);
+
+    storiesdb.view('story', 'byUser', { key: userToList }, function (err, body) {
+      if (err) return cb(err);
+
+      var list = body.rows.map(function (value) {
+        console.log(value);
+        return {
+          id:    value.id,
+          title: value.value
+        };
+      });
+
+      cb(null, list);
     });
 
   };

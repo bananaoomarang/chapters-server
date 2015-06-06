@@ -89,14 +89,29 @@ module.exports = function (cfg) {
 
       if (err) return reply( Boom.wrap(err) );
 
-      return reply(body);
+      return reply({
+        name:  body.name,
+        roles: body.roles,
+        scope: body.scope
+      });
 
     });
 
   };
 
   controller.getStories = function (req, reply) {
-    return reply(404);
+    var username   = null;
+    var userToList = req.params.name;
+
+    if (req.auth.credentials) username   = req.auth.credentials.name;
+
+    users.getStories(username, userToList, function (err, list) {
+      if (err) return reply( Boom.wrap(err) );
+
+      return reply(list)
+        .code(200);
+    });
+
   };
 
   controller.destroy = function (req, reply) {
