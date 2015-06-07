@@ -39,11 +39,11 @@ module.exports = function (cfg) {
         break;
     }
 
-    stories.get(username, id, parse, function (err, text) {
+    stories.get(username, id, parse, function (err, doc) {
 
       if (err) return reply( Boom.wrap(err) );
 
-      return reply(text);
+      return reply(null, doc);
 
     });
 

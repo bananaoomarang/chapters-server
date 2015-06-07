@@ -106,25 +106,29 @@ module.exports = function (cfg) {
         })
         .on('end', function () {
 
-          done(null, text);
+          doc.text = text;
+
+          done(null, doc);
 
         });
 
       },
 
-      function returnBody (string, done) {
+      function returnBody (doc, done) {
 
         if (parse) {
 
-          marked(string, function (err, html) {
+          marked(doc.text, function (err, html) {
             if (err) return done(err);
 
-            return done(null, html);
+            doc.html = html;
+
+            return done(null, doc);
           });
 
         } else {
 
-          done(null, string);
+          done(null, doc);
 
         }
 
