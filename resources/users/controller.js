@@ -103,7 +103,7 @@ module.exports = function (cfg) {
     var username   = null;
     var userToList = req.params.name;
 
-    if (req.auth.credentials) username   = req.auth.credentials.name;
+    if (req.auth.credentials) username = req.auth.credentials.name;
 
     users.getStories(username, userToList, function (err, list) {
       if (err) return reply( Boom.wrap(err) );
@@ -112,6 +112,17 @@ module.exports = function (cfg) {
         .code(200);
     });
 
+  };
+
+  controller.getCurrentUserStories = function (req, reply) {
+    var username   = req.auth.credentials.name;
+
+    users.getStories(username, username, function (err, list) {
+      if (err) return reply( Boom.wrap(err) );
+
+      return reply(list)
+        .code(200);
+    });
   };
 
   controller.destroy = function (req, reply) {

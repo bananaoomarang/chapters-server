@@ -98,7 +98,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('Validate totken', function (done) {
+  lab.test('Validate token', function (done) {
 
     app
       .get('/users/validate')
@@ -167,6 +167,28 @@ lab.experiment('user', function () {
 
     app
       .get('/users/' + user.username + '/stories')
+      .set('Authorization', 'Bearer ' + user.token)
+      .set('Accept', 'application/json')
+      .expect('Content-Type', 'application/json; charset=utf-8')
+      .expect(200)
+      .end(function(err, res) {
+
+        if (err) return done(err);
+
+        var doc = res.body;
+
+        expect(doc).to.be.array();
+
+        done(null);
+
+      });
+
+  });
+
+  lab.test('List logged in user\'s stories', function (done) {
+
+    app
+      .get('/users/current/stories')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')

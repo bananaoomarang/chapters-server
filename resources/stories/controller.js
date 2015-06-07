@@ -20,8 +20,10 @@ module.exports = function (cfg) {
 
   controller.get = function (req, reply) {
 
-    var username = req.auth.credentials.name;
+    var username = null;
     var id       = req.params.id;
+
+    if(req.auth.credentials) username = req.auth.credentials.name;
 
     // Parse markdown by default
     var parse = true;
