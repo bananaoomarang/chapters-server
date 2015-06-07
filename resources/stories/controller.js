@@ -155,11 +155,14 @@ module.exports = function (cfg) {
 
   };
 
-  // Can search beased on query, reply with array of IDs
+  // Can search based on query, reply with array of IDs
   controller.list = function (req, reply) {
-    var query       = req.query;
+    var username = null;
+    var query = req.query;
 
-    stories.list(query.title, function (err, list) {
+    if(req.auth.credentials) username = req.auth.credentials.name;
+
+    stories.list(username, query.title, function (err, list) {
 
       if (err) return reply( Boom.wrap(err) );
 

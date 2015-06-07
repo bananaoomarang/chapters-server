@@ -198,37 +198,59 @@ module.exports = function (cfg) {
 
   };
 
-  model.list = function (title, cb) {
+  model.list = function (username, title, cb) {
 
-    db.view('story', 'byTitle', { key: title }, function (err, body) {
-      if (err) return cb(err);
+    if(title) {
 
-      var list = body.rows.map(function (value) {
-        return {
-          id:    value.id,
-          title: value.value.title
-        };
+      db.view('story', 'byTitle', { key: title }, function (err, body) {
+        if (err) return cb(err);
+
+        var list = body.rows.map(function (value) {
+          return {
+            id:    value.id,
+            title: value.value.title
+          };
+        });
+
+        cb(null, list);
       });
 
-      cb(null, list);
-    });
+    } else {
 
-  };
 
-  model.search = function (author, title, cb) {
+      // Just list them all
 
-    db.view('story', 'byUser', { key: author }, function (err, body) {
-      if (err) return cb(err);
+      /* eslint-disable camelcase */
 
-      var list = body.rows.map(function (value) {
-        return {
-          id:    value.id.split('!')[1],
-          title: value.value
-        };
+      db.list({ include_docs: true }, function (err, body) {
+
+      /* eslint-enable camelcase */
+
+        if(err) return cb(err);
+
+        var list = body.rows.filter(function (val) {
+
+          if(val.id.match(/^_design+/)) {
+            return false;
+          } else {
+            return true;
+          }
+
+        })
+        .map(function (val) {
+
+          return {
+            title: val.doc.title,
+            id:    val.id
+          };
+
+        });
+
+        cb(null, list);
+
       });
+    }
 
-      cb(null, list);
-    });
 
   };
 
