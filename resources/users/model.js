@@ -115,7 +115,6 @@ module.exports = function (cfg) {
       if (err) return cb(err);
 
       var list = body.rows.map(function (value) {
-        console.log(value);
         return {
           id:    value.id,
           title: value.value
@@ -133,7 +132,24 @@ module.exports = function (cfg) {
 
       if(err) return cb(err);
 
-      cb(null, body);
+      var list = body.rows.filter(function (val) {
+
+        if(val.id.match(/^org\.couchdb\.user:+/)) {
+          return true;
+        } else {
+          return false;
+        }
+
+      })
+      .map(function (val) {
+
+        return {
+          id: val.id.split(':')[1]
+        };
+
+      });
+
+      cb(null, list);
 
     });
 

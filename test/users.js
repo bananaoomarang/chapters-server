@@ -199,7 +199,7 @@ lab.experiment('user', function () {
 
         var doc = res.body;
 
-        expect(doc).to.be.object();
+        expect(doc).to.be.array();
 
         done(null);
 
