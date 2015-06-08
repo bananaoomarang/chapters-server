@@ -52,6 +52,7 @@ module.exports = function (cfg) {
   controller.edit = function (req, reply) {
     var username = req.auth.credentials.name;
     var id       = req.params.id;
+    var title    = req.payload.title;
     var text     = req.payload.text;
 
     var jobs = [
@@ -66,7 +67,7 @@ module.exports = function (cfg) {
       },
 
       function updateStory (done) {
-        stories.save(username, id, null, text, function (err) {
+        stories.save(username, id, title, text, function (err) {
 
           if (err) return done(err);
 
