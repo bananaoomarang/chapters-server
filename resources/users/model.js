@@ -117,7 +117,7 @@ module.exports = function (cfg) {
       var list = body.rows.map(function (value) {
         return {
           id:    value.id,
-          title: value.value
+          title: value.value.title
         };
       });
 
