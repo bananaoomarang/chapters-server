@@ -19,7 +19,7 @@ module.exports = function (cfg) {
 
     var doc = {
       _id:     key,
-      owner:   username,
+      author:  username,
       depends: [],
       path:    saveLoc
     };
