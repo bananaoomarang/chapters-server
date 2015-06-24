@@ -8,11 +8,11 @@ var storiesdb = require('nano')('http://localhost:5984/stories');
 var server = module.exports = new Hapi.Server();
 
 var cfg = {
-  server:           server,
-  usersdb:          usersdb,
-  storiesdb:        storiesdb,
-  tokenSecret:      'PLEASEREPLACEME', // XXX Replace with secret for JWT validation
-  tokenExpiration:  20 // Token expiration timeout in minutes
+  server:          server,
+  usersdb:         usersdb,
+  storiesdb:       storiesdb,
+  tokenSecret:     'PLEASEREPLACEME', // XXX Replace with secret for JWT validation
+  tokenExpiration: 20 // Token expiration timeout in minutes
 };
 
 var routes  = require('./lib/routes')(cfg);

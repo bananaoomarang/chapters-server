@@ -137,7 +137,7 @@ module.exports = function (cfg) {
   // This just serves as a quick token test
   controller.validate = function (req, reply) {
 
-    reply('You\'re good to go!');
+    reply(req.auth.credentials.name);
 
   };
 
