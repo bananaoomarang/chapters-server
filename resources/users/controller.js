@@ -41,9 +41,7 @@ module.exports = function (cfg) {
     var credentials = req.payload;
 
     users.getToken(credentials, function (err, token) {
-
       if (err) {
-
         switch(err.message) {
           case 'missing':
             return reply( Boom.unauthorized('User not found') );

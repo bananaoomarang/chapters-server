@@ -9,7 +9,6 @@ var server = module.exports = new Hapi.Server();
 
 var cfg = {
   server:           server,
-  directoryToServe: 'public',
   usersdb:          usersdb,
   storiesdb:        storiesdb,
   tokenSecret:      'PLEASEREPLACEME', // XXX Replace with secret for JWT validation
