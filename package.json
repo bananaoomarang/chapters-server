@@ -1,6 +1,6 @@
 {
   "name": "chapters-server",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Hapi API server for Chapters",
   "repository": {
     "type": "git",
@@ -19,7 +19,7 @@
     "test"
   ],
   "author": "Milo Mordaunt <milomord@gmail.com>",
-  "license": "Apache",
+  "license": "Apache 2.0",
   "devDependencies": {
     "code": "^1.4.0",
     "debug": "^2.2.0",

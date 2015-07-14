@@ -68,7 +68,6 @@ module.exports = function (cfg) {
 
       function updateStory (done) {
         stories.save(username, id, title, text, function (err) {
-
           if (err) return done(err);
 
           return done(null);

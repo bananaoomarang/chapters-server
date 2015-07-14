@@ -1,37 +1,49 @@
 'use strict';
 
-var Boom        = require('boom');
-var Joi         = require('joi');
+var Boom       = require('boom');
+var Joi        = require('joi');
+var series     = require('async').series;
 var userSchema = require('../../lib/schemas').user;
 
 module.exports = function (cfg) {
   var users         = require('./model')(cfg);
 
-  var controller   = {};
+  var controller = {};
 
   controller.create = function (req, reply) {
 
     var newUser = req.payload;
 
-    Joi.validate(newUser, userSchema, function (err) {
-      if (err) return reply(Boom.wrap(err));
-    });
+    series([
+      function validate(done) {
+        Joi.validate(newUser, userSchema, function (err) {
+          console.log(err);
+          if (err) return done(Boom.wrap(err));
 
-    users.add(newUser, function confirmUserAdded (err, body) {
+          done(null);
+        });
+      },
+      function add(done) {
+        users.add(newUser, function confirmUserAdded (err) {
+          console.log(err);
 
-      if (err) {
+          if (err) {
 
-        if (err.error === 'conflict') {
-          return reply( Boom.badRequest('User already exists') );
-        } else {
-          return reply( Boom.wrap(err) );
-        }
+            if (err.error === 'conflict')
+              return done( Boom.badRequest('User already exists') );
+            else
+              return done( Boom.wrap(err) );
 
+            done(null);
+          }
+
+        });
       }
+    ], function (err) {
+      if(err) return reply(err);
 
-      return reply(body)
-               .code(201);
-
+      return reply()
+        .code(201);
     });
 
   };
