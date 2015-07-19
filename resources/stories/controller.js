@@ -61,7 +61,7 @@ module.exports = function (cfg) {
 
           if (err) return done(err);
 
-          return done(null);
+          done(null);
 
         });
       },
@@ -70,7 +70,7 @@ module.exports = function (cfg) {
         stories.save(username, id, title, text, function (err) {
           if (err) return done(err);
 
-          return done(null);
+          done(null);
 
         });
       }
@@ -81,10 +81,10 @@ module.exports = function (cfg) {
 
         if(err.error === 'not_found') return reply( Boom.notFound(err) );
 
-        return reply( Boom.wrap(err) );
+        reply( Boom.wrap(err) );
       }
 
-      return reply(null, { id: id });
+      reply(null, { id: id });
     });
 
   };
@@ -109,7 +109,6 @@ module.exports = function (cfg) {
 
   // Multipart file upload
   controller.upload = function (req, reply) {
-
     var payload = req.payload;
 
     var username = req.auth.credentials.name;

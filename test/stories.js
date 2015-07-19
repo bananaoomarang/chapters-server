@@ -108,7 +108,7 @@ lab.experiment('story', function () {
     storyFixture.title = 'Not the Old One';
 
     app
-      .post('/stories/import')
+      .post('/stories')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .send(storyFixture)
@@ -132,7 +132,7 @@ lab.experiment('story', function () {
   lab.test('edit non-existing story', function (done) {
 
     app
-      .post('/stories/fake_id')
+      .patch('/stories/fake_id')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .send(storyFixture)
@@ -152,7 +152,7 @@ lab.experiment('story', function () {
   lab.test('edit story', function (done) {
 
     app
-      .post('/stories/' + storyFixture.id)
+      .patch('/stories/' + storyFixture.id)
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .send(storyFixture)

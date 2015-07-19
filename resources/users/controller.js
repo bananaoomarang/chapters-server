@@ -17,32 +17,28 @@ module.exports = function (cfg) {
     series([
       function validate(done) {
         Joi.validate(newUser, userSchema, function (err) {
-          console.log(err);
           if (err) return done(Boom.wrap(err));
 
-          done(null);
+          done();
         });
       },
       function add(done) {
-        users.add(newUser, function confirmUserAdded (err) {
-          console.log(err);
-
+        users.add(newUser, function confirmUserAdded (err, body) {
           if (err) {
-
             if (err.error === 'conflict')
               return done( Boom.badRequest('User already exists') );
             else
               return done( Boom.wrap(err) );
-
-            done(null);
           }
+
+          done(null, body);
 
         });
       }
-    ], function (err) {
+    ], function (err, results) {
       if(err) return reply(err);
 
-      return reply()
+      return reply(results[1])
         .code(201);
     });
 
