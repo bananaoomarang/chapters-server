@@ -38,7 +38,6 @@
     "joi": "^6.5.0",
     "jsonwebtoken": "^5.0.4",
     "marked": "^0.3.3",
-    "mkdirp": "^0.5.1",
     "nano": "^6.1.4",
     "object-assign": "^3.0.0",
     "uuid": "^2.0.1"

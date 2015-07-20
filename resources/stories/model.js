@@ -1,11 +1,8 @@
 'use strict';
 
-var fs          = require('fs');
-var path        = require('path');
 var debug       = require('debug')('stories');
 var async       = require('async');
 var marked      = require('marked');
-var mkdirp      = require('mkdirp');
 var updateCouch = require('../../lib/update-couch-doc');
 
 module.exports = function (cfg) {
@@ -13,66 +10,21 @@ module.exports = function (cfg) {
   var db      = cfg.storiesdb;
 
   model.save = function (username, key, title, text, cb) {
-
-    var saveLoc = path.join('data', 'stories', username, key);
-    var saveDir = path.dirname(saveLoc);
-
     var doc = {
-      _id:     key,
-      author:  username,
-      depends: [],
-      path:    saveLoc
+      _id:      key,
+      title:    '',
+      author:   username,
+      markdown: text,
+      depends:  []
     };
 
     if(title) doc.title = title;
 
-    var jobs = [
-      function createDirectory (done) {
-        mkdirp(saveDir, function (err) {
-
-          if (err) {
-
-            done(err);
-
-          } else {
-
-            done();
-
-          }
-
-        });
-      },
-
-      function toDisk (done) {
-        fs.writeFile(saveLoc, text, function (err) {
-          if (err) return done(err);
-
-          done(null);
-        });
-
-      },
-
-      function saveStory(done) {
-        updateCouch(key, db, doc, function (err) {
-          if (err) return done(err);
-
-          done();
-        });
-      }
-
-    ];
-
-
-    async.series(jobs, function asyncFinished (err) {
-
+    updateCouch(key, db, doc, function (err) {
       if (err) return cb(err);
 
-      debug('Successfully saved %s', title);
-
-      cb();
-
+      cb(null, doc);
     });
-
   };
 
   model.get = function (username, id, parse, cb) {
@@ -81,7 +33,6 @@ module.exports = function (cfg) {
 
       function fetchFromDb (done) {
         db.get(id, function (err, doc) {
-
           if (err) return done(err);
 
           done(null, doc);
@@ -89,36 +40,10 @@ module.exports = function (cfg) {
         });
       },
 
-      function readFile (doc, done) {
-        var location = doc.path;
-        var read     = fs.createReadStream(location, { encoding: 'utf-8' });
-        var text     = '';
-
-        read.on('error', function (err) {
-
-          done(err);
-
-        })
-        .on('data', function (data) {
-
-          text += data.toString();
-
-        })
-        .on('end', function () {
-
-          doc.text = text;
-
-          done(null, doc);
-
-        });
-
-      },
-
       function returnBody (doc, done) {
-
         if (parse) {
 
-          marked(doc.text, function (err, html) {
+          marked(doc.markdown, function (err, html) {
             if (err) return done(err);
 
             doc.html = html;
@@ -137,10 +62,9 @@ module.exports = function (cfg) {
     ];
 
     async.waterfall(jobs, function (err, result) {
-
       if (err) return cb(err);
 
-      return cb(null, result);
+      cb(null, result);
 
     });
 
@@ -161,18 +85,10 @@ module.exports = function (cfg) {
 
           if (err) return done(err);
 
-          return done(null, doc);
-
-        });
-
-      },
-
-      function deleteFromDisk (doc, done) {
-        fs.unlink(doc.path, function (err) {
-          if (err) return done(err);
-
           done(null, doc);
+
         });
+
       },
 
       function deleteFromDb (doc, done) {
@@ -181,7 +97,7 @@ module.exports = function (cfg) {
 
           if (err) return done(err);
 
-          return done(null, body);
+          done(null, body);
 
         });
       }
