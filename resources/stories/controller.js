@@ -3,8 +3,8 @@
 var Boom        = require('boom');
 var async       = require('async');
 var uuid        = require('uuid');
-//var Joi         = require('joi');
-//var storySchema = require('../../lib/schemas').story;
+var Joi         = require('joi');
+var storySchema = require('../../lib/schemas').story;
 
 function trimExtension (filename) {
   var split = filename.split('.');
@@ -50,28 +50,37 @@ module.exports = function (cfg) {
   };
 
   controller.edit = function (req, reply) {
-    var username = req.auth.credentials.name;
-    var id       = req.params.id;
-    var title    = req.payload.title;
-    var text     = req.payload.text;
+    const username = req.auth.credentials.name;
 
-    var jobs = [
+    const doc = {
+      id:       req.params.id,
+      title:    req.payload.title,
+      author:   username,
+      markdown: req.payload.markdown
+    };
+
+    const jobs = [
+      function validate(done) {
+        Joi.validate(doc, storySchema, function (err) {
+          console.log(err);
+          if (err) return done(err);
+
+          done();
+        });
+      },
       function checkExistance (done) {
-        stories.get(username, id, false, function (err) {
-
+        stories.get(username, doc.id, false, function (err) {
           if (err) return done(err);
 
           done(null);
-
         });
       },
 
       function updateStory (done) {
-        stories.save(username, id, title, text, function (err) {
+        stories.save(username, doc, function (err) {
           if (err) return done(err);
 
           done(null);
-
         });
       }
     ];
@@ -81,27 +90,30 @@ module.exports = function (cfg) {
 
         if(err.error === 'not_found') return reply( Boom.notFound(err) );
 
-        reply( Boom.wrap(err) );
+        return reply( Boom.wrap(err) );
       }
 
-      reply(null, { id: id });
+      reply(null, { id: doc.id });
     });
 
   };
 
   // Receive JSON payload from our editor
   controller.import = function (req, reply) {
-    var payload  = req.payload;
-    var username = req.auth.credentials.name;
-    var key      = payload.id || uuid.v4();
-    var title    = payload.title;
-    var text     = payload.text;
+    const username = req.auth.credentials.name;
 
-    stories.save(username, key, title, text, function (err) {
+    const doc = {
+      id:       req.payload.id || uuid.v4(),
+      title:    req.payload.title,
+      author:   req.auth.credentials.name,
+      markdown: req.payload.markdown
+    };
+
+    stories.save(username, doc, function (err) {
 
       if (err) return reply(Boom.wrap(err));
 
-      return reply(null, { id: key })
+      return reply(null, { id: doc.id })
         .code(201);
 
     });
@@ -109,19 +121,21 @@ module.exports = function (cfg) {
 
   // Multipart file upload
   controller.upload = function (req, reply) {
-    var payload = req.payload;
+    const username = req.auth.credentials.name;
 
-    var username = req.auth.credentials.name;
-    var stream   = payload.file;
-    var title    = trimExtension(payload.file.hapi.filename);
-    var key      = uuid.v4();
-    var text     = '';
+    let doc = {
+      id:       uuid.v4(),
+      title:    trimExtension(req.payload.file.hapi.filename),
+      markdown: ''
+    };
+
+    let stream = req.payload.file;
 
     var jobs = [
       function parseStream (done) {
 
         stream.on('data', function (d) {
-          text += d.toString();
+          doc.markdown += d.toString();
         })
         .on('error', function (err) {
           reply( Boom.wrap(err) );
@@ -133,7 +147,7 @@ module.exports = function (cfg) {
       },
 
       function saveData (done) {
-        stories.save(username, key, title, text, function (err) {
+        stories.save(username, doc, function (err) {
 
           if (err) return done(err);
 
@@ -147,7 +161,7 @@ module.exports = function (cfg) {
 
       if (err) return reply( Boom.wrap(err) );
 
-      return reply(null, { id: key })
+      return reply(null, { id: doc.id })
         .code(201);
 
     });
@@ -172,11 +186,10 @@ module.exports = function (cfg) {
   };
 
   controller.destroy = function (req, reply) {
-    var id       = req.params.id;
+    const username = req.auth.credentials.name;
+    const id       = req.params.id;
 
-    // TODO Authenticate here
-    stories.destroy(id, function (err) {
-
+    stories.destroy(username, id, function (err) {
       if (err) return reply( Boom.wrap(err) );
 
       reply();

@@ -9,18 +9,15 @@ module.exports = function (cfg) {
   var model   = {};
   var db      = cfg.storiesdb;
 
-  model.save = function (username, key, title, text, cb) {
-    var doc = {
-      _id:      key,
-      title:    '',
-      author:   username,
-      markdown: text,
-      depends:  []
+  model.save = function (username, body, cb) {
+    const doc = {
+      _id:      body.id,
+      title:    body.title || '',
+      author:   body.author,
+      markdown: body.markdown
     };
 
-    if(title) doc.title = title;
-
-    updateCouch(key, db, doc, function (err) {
+    updateCouch(doc._id, db, doc, function (err) {
       if (err) return cb(err);
 
       cb(null, doc);
@@ -70,7 +67,7 @@ module.exports = function (cfg) {
 
   };
 
-  model.destroy = function (id, cb) {
+  model.destroy = function (username, id, cb) {
     debug('removing story: %s', id);
 
     var removeStory = [
