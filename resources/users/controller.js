@@ -25,6 +25,7 @@ module.exports = function (cfg) {
       function add(done) {
         users.add(newUser, function confirmUserAdded (err, body) {
           if (err) {
+            console.log(err);
             if (err.error === 'conflict')
               return done( Boom.badRequest('User already exists') );
             else

@@ -19,9 +19,9 @@ module.exports = function (cfg) {
   var stories      = require('./model')(cfg);
 
   controller.get = function (req, reply) {
+    const id     = req.params.id;
 
-    var username = null;
-    var id       = req.params.id;
+    let username = null;
 
     if(req.auth.credentials) username = req.auth.credentials.name;
 
@@ -43,6 +43,32 @@ module.exports = function (cfg) {
 
       if (err) return reply( Boom.wrap(err) );
 
+      //
+      // Permisions
+      //
+      if(doc.read[0] === 'all')
+        doc.read = true;
+      else
+        doc.read =
+          doc.read
+            .some(function (uusername) {
+              return uusername === username;
+            });
+
+      console.log(username);
+      console.log(doc.write);
+
+      if(doc.write[0] === 'all')
+        doc.write = true;
+      else
+        doc.write =
+          doc.write
+            .some(function (uusername) {
+              return uusername === username;
+            });
+
+            console.log(doc.write);
+
       return reply(null, doc);
 
     });
@@ -54,6 +80,8 @@ module.exports = function (cfg) {
 
     const doc = {
       id:       req.params.id,
+      read:     req.payload.read  || [username],
+      write:    req.payload.write || [username],
       title:    req.payload.title,
       author:   username,
       markdown: req.payload.markdown
@@ -62,7 +90,6 @@ module.exports = function (cfg) {
     const jobs = [
       function validate(done) {
         Joi.validate(doc, storySchema, function (err) {
-          console.log(err);
           if (err) return done(err);
 
           done();
@@ -104,6 +131,8 @@ module.exports = function (cfg) {
 
     const doc = {
       id:       req.payload.id || uuid.v4(),
+      read:     req.payload.read  || [username],
+      write:    req.payload.write || [username],
       title:    req.payload.title,
       author:   req.auth.credentials.name,
       markdown: req.payload.markdown
@@ -125,6 +154,8 @@ module.exports = function (cfg) {
 
     let doc = {
       id:       uuid.v4(),
+      read:     req.payload.read  || [username],
+      write:    req.payload.write || [username],
       title:    trimExtension(req.payload.file.hapi.filename),
       markdown: ''
     };

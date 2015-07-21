@@ -13,6 +13,8 @@ module.exports = function (cfg) {
     const doc = {
       _id:      body.id,
       title:    body.title || '',
+      read:     body.read,
+      write:    body.write,
       author:   body.author,
       markdown: body.markdown
     };
@@ -61,8 +63,9 @@ module.exports = function (cfg) {
     async.waterfall(jobs, function (err, result) {
       if (err) return cb(err);
 
-      cb(null, result);
+      delete result._rev;
 
+      cb(null, result);
     });
 
   };

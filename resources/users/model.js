@@ -15,7 +15,7 @@ module.exports = function (cfg) {
 
     debug('creating %s', user.username);
 
-    var doc = {
+    const doc = {
       _id:      'org.couchdb.user:' + user.username,
       name:     user.username,
       type:     'user',
