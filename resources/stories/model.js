@@ -123,8 +123,9 @@ module.exports = function (cfg) {
 
         var list = body.rows.map(function (value) {
           return {
-            id:    value.id,
-            title: value.value.title
+            id:     value.id,
+            title:  value.value.title,
+            author: value.value.author
           };
         });
 
@@ -156,8 +157,9 @@ module.exports = function (cfg) {
         .map(function (val) {
 
           return {
-            title: val.doc.title,
-            id:    val.id
+            title:  val.doc.title,
+            author: val.doc.author,
+            id:     val.id
           };
 
         });
