@@ -152,6 +152,7 @@ module.exports = function (cfg) {
       read:     req.payload.read  || [username],
       write:    req.payload.write || [username],
       title:    trimExtension(req.payload.file.hapi.filename),
+      author:   username,
       markdown: ''
     };
 
