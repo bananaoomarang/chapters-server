@@ -4,7 +4,7 @@ var Boom        = require('boom');
 var async       = require('async');
 var uuid        = require('uuid');
 var Joi         = require('joi');
-var storySchema = require('../../lib/schemas').story;
+var chapterSchema = require('../../lib/schemas').chapter;
 
 function trimExtension (filename) {
   var split = filename.split('.');
@@ -16,7 +16,7 @@ function trimExtension (filename) {
 
 module.exports = function (cfg) {
   var controller = {};
-  var stories      = require('./model')(cfg);
+  var chapters      = require('./model')(cfg);
 
   controller.get = function (req, reply) {
     const id     = req.params.id;
@@ -39,7 +39,7 @@ module.exports = function (cfg) {
         break;
     }
 
-    stories.get(username, id, parse, function (err, doc) {
+    chapters.get(username, id, parse, function (err, doc) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -55,9 +55,6 @@ module.exports = function (cfg) {
               return uusername === username;
             });
 
-      console.log(username);
-      console.log(doc.write);
-
       if(doc.write[0] === 'all')
         doc.write = true;
       else
@@ -66,8 +63,6 @@ module.exports = function (cfg) {
             .some(function (uusername) {
               return uusername === username;
             });
-
-            console.log(doc.write);
 
       return reply(null, doc);
 
@@ -89,22 +84,22 @@ module.exports = function (cfg) {
 
     const jobs = [
       function validate(done) {
-        Joi.validate(doc, storySchema, function (err) {
+        Joi.validate(doc, chapterSchema, function (err) {
           if (err) return done(err);
 
           done();
         });
       },
       function checkExistance (done) {
-        stories.get(username, doc.id, false, function (err) {
+        chapters.get(username, doc.id, false, function (err) {
           if (err) return done(err);
 
           done(null);
         });
       },
 
-      function updateStory (done) {
-        stories.save(username, doc, function (err) {
+      function updateChapter (done) {
+        chapters.save(username, doc, function (err) {
           if (err) return done(err);
 
           done(null);
@@ -138,7 +133,7 @@ module.exports = function (cfg) {
       markdown: req.payload.markdown
     };
 
-    stories.save(username, doc, function (err) {
+    chapters.save(username, doc, function (err) {
 
       if (err) return reply(Boom.wrap(err));
 
@@ -178,7 +173,7 @@ module.exports = function (cfg) {
       },
 
       function saveData (done) {
-        stories.save(username, doc, function (err) {
+        chapters.save(username, doc, function (err) {
 
           if (err) return done(err);
 
@@ -206,7 +201,7 @@ module.exports = function (cfg) {
 
     if(req.auth.credentials) username = req.auth.credentials.name;
 
-    stories.list(username, query.title, function (err, list) {
+    chapters.list(username, query.title, function (err, list) {
 
       if (err) return reply( Boom.wrap(err) );
 
@@ -220,7 +215,7 @@ module.exports = function (cfg) {
     const username = req.auth.credentials.name;
     const id       = req.params.id;
 
-    stories.destroy(username, id, function (err) {
+    chapters.destroy(username, id, function (err) {
       if (err) return reply( Boom.wrap(err) );
 
       reply();

@@ -163,10 +163,10 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('List user\'s stories', function (done) {
+  lab.test('List user\'s chapters', function (done) {
 
     app
-      .get('/users/' + user.username + '/stories')
+      .get('/users/' + user.username + '/chapters')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
@@ -185,10 +185,10 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('List logged in user\'s stories', function (done) {
+  lab.test('List logged in user\'s chapters', function (done) {
 
     app
-      .get('/users/current/stories')
+      .get('/users/current/chapters')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')

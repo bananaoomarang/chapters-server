@@ -4,7 +4,7 @@
 
 var nano = require('nano')('http://localhost:5984');
 
-nano.db.create('stories', function (err, body) {
-  if (!err) console.log('Database \'stories\' created.');
+nano.db.create('chapters', function (err, body) {
+  if (!err) console.log('Database \'chapters\' created.');
   else console.log(err);
 });

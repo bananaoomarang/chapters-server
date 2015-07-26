@@ -9,7 +9,7 @@ module.exports = function (cfg) {
 
   var model     = {};
   var db        = cfg.usersdb;
-  var storiesdb = cfg.storiesdb;
+  var chaptersdb = cfg.chaptersdb;
 
   model.add = function (user, cb) {
 
@@ -109,9 +109,9 @@ module.exports = function (cfg) {
 
   model.getStories = function (username, userToList, cb) {
 
-    debug('getting stories for %s', userToList);
+    debug('getting chapters for %s', userToList);
 
-    storiesdb.view('story', 'byUser', { key: userToList }, function (err, body) {
+    chaptersdb.view('chapter', 'byUser', { key: userToList }, function (err, body) {
       if (err) return cb(err);
 
       var list = body.rows.map(function (value) {

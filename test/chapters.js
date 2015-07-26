@@ -7,23 +7,23 @@ var Code         = require('code');
 var supertest    = require('supertest');
 var async        = require('async');
 var server       = require('../');
-var storyFixture = require('./fixtures/story.json');
+var chapterFixture = require('./fixtures/chapter.json');
 
 var lab    = exports.lab = Lab.script();
 var expect = Code.expect;
 var app    = supertest('http://localhost:8888');
 
 
-lab.experiment('story', function () {
+lab.experiment('chapter', function () {
 
-  var storyFromDisk = {
+  var chapterFromDisk = {
     id:   null,
-    name: 'mock-story',
-    path: 'test/fixtures/story.md'
+    name: 'mock-chapter',
+    path: 'test/fixtures/chapter.md'
   };
 
   var user = {
-    username: 'testuser-story',
+    username: 'testuser-chapter',
     password: 'password',
     token:    ''
   };
@@ -81,11 +81,11 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('Create story by uploading markdown file', function (done) {
+  lab.test('Create chapter by uploading markdown file', function (done) {
 
     app
-      .post('/stories/upload')
-      .attach('file', storyFromDisk.path)
+      .post('/chapters/upload')
+      .attach('file', chapterFromDisk.path)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(201)
       .end(function (err, res) {
@@ -95,7 +95,7 @@ lab.experiment('story', function () {
         expect(res).to.be.ok;
         expect(res.body.id);
 
-        storyFromDisk.id = res.body.id;
+        chapterFromDisk.id = res.body.id;
 
         done(null);
 
@@ -103,15 +103,15 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('Create story from JSON (ie, exported from frontend editor)', function (done) {
+  lab.test('Create chapter from JSON (ie, exported from frontend editor)', function (done) {
 
-    storyFixture.title = 'Not the Old One';
+    chapterFixture.title = 'Not the Old One';
 
     app
-      .post('/stories')
+      .post('/chapters')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
-      .send(storyFixture)
+      .send(chapterFixture)
       .expect(201)
       .end(function (err, res) {
 
@@ -121,7 +121,7 @@ lab.experiment('story', function () {
         expect(res.body.id);
 
         // TODO  Dirty.
-        storyFixture.id = res.body.id;
+        chapterFixture.id = res.body.id;
 
         done(null);
 
@@ -129,13 +129,13 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('edit non-existing story', function (done) {
+  lab.test('edit non-existing chapter', function (done) {
 
     app
-      .patch('/stories/fake_id')
+      .patch('/chapters/fake_id')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
-      .send(storyFixture)
+      .send(chapterFixture)
       .expect(404)
       .end(function (err, res) {
 
@@ -149,13 +149,13 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('edit story', function (done) {
+  lab.test('edit chapter', function (done) {
 
     app
-      .patch('/stories/' + storyFixture.id)
+      .patch('/chapters/' + chapterFixture.id)
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
-      .send(storyFixture)
+      .send(chapterFixture)
       .expect(200)
       .end(function (err, res) {
 
@@ -171,10 +171,10 @@ lab.experiment('story', function () {
   });
 
 
-  lab.test('get story', function (done) {
+  lab.test('get chapter', function (done) {
 
     app
-      .get('/stories/' + storyFixture.id)
+      .get('/chapters/' + chapterFixture.id)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -190,10 +190,10 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('List stories by title', function (done) {
+  lab.test('List chapters by title', function (done) {
 
     app
-      .get('/stories?title=' + storyFixture.title)
+      .get('/chapters?title=' + chapterFixture.title)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -205,7 +205,7 @@ lab.experiment('story', function () {
         var doc = res.body;
 
         expect(doc).to.be.array;
-        expect(doc[0].title).to.equal(storyFixture.title);
+        expect(doc[0].title).to.equal(chapterFixture.title);
 
         done(null);
 
@@ -213,10 +213,10 @@ lab.experiment('story', function () {
 
   });
 
-  lab.test('delete story', function (done) {
+  lab.test('delete chapter', function (done) {
 
     app
-      .delete('/stories/' + storyFromDisk.id)
+      .delete('/chapters/' + chapterFromDisk.id)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {
@@ -232,9 +232,9 @@ lab.experiment('story', function () {
   });
 
   lab.after(function (done) {
-    // TODO multiple story delete should be part of test
+    // TODO multiple chapter delete should be part of test
     app
-      .del('/stories/' + storyFixture.id)
+      .del('/chapters/' + chapterFixture.id)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
       .end(function (err, res) {

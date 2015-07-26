@@ -1,13 +1,13 @@
 'use strict';
 
-var debug       = require('debug')('stories');
+var debug       = require('debug')('chapters');
 var async       = require('async');
 var marked      = require('marked');
 var updateCouch = require('../../lib/update-couch-doc');
 
 module.exports = function (cfg) {
   var model   = {};
-  var db      = cfg.storiesdb;
+  var db      = cfg.chaptersdb;
 
   model.save = function (username, body, cb) {
     const doc = {
@@ -71,9 +71,9 @@ module.exports = function (cfg) {
   };
 
   model.destroy = function (username, id, cb) {
-    debug('removing story: %s', id);
+    debug('removing chapter: %s', id);
 
-    var removeStory = [
+    var removeChapter = [
 
       function getLatestRevision (done) {
 
@@ -104,7 +104,7 @@ module.exports = function (cfg) {
 
     ];
 
-    async.waterfall(removeStory, function (err, result) {
+    async.waterfall(removeChapter, function (err, result) {
 
       if (err) return cb(err);
 
@@ -118,7 +118,7 @@ module.exports = function (cfg) {
 
     if(title) {
 
-      db.view('story', 'byTitle', { key: title }, function (err, body) {
+      db.view('chapter', 'byTitle', { key: title }, function (err, body) {
         if (err) return cb(err);
 
         var list = body.rows.map(function (value) {

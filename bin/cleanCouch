@@ -4,7 +4,7 @@
 
 var nano = require('nano')('http://localhost:5984');
 
-nano.db.destroy('stories', function (err, body) {
-  if (!err) console.log('Database \'stories\' deleted.');
+nano.db.destroy('chapters', function (err, body) {
+  if (!err) console.log('Database \'chapters\' deleted.');
   else console.log(err);
 });
