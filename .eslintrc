@@ -1,4 +1,7 @@
 {
+  "globals": {
+    "emit": true
+  },
   "env": {
     "node": true,
     "browser": true,

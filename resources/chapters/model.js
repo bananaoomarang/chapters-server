@@ -1,127 +1,112 @@
 'use strict';
 
-var debug       = require('debug')('chapters');
-var async       = require('async');
-var marked      = require('marked');
-var updateCouch = require('../../lib/update-couch-doc');
+const debug          = require('debug')('chapters');
+const Bluebird       = require('bluebird');
+const marked         = Bluebird.promisify(require('marked'));
+const assign         = require('object-assign');
+const Boom           = require('boom');
+const getPermissions = require('../../lib/permissions').figure;
 
 module.exports = function (cfg) {
-  var model   = {};
-  var db      = cfg.chaptersdb;
+  const db = cfg.chaptersdb;
 
-  model.save = function (username, body, cb) {
+  let model = {};
+
+  model.save = function (username, body) {
+    debug('saving chapter: %s', body.title);
+
     const doc = {
       _id:      body.id,
       title:    body.title || '',
-      read:     body.read,
-      write:    body.write,
+      read:     body.read  || [username],
+      write:    body.write || [username],
       author:   body.author,
       markdown: body.markdown
     };
 
-    updateCouch(doc._id, db, doc, function (err) {
-      if (err) return cb(err);
+    /* eslint-disable camelcase */
 
-      cb(null, doc);
-    });
+    return db
+      .getAsync(doc._id, { revs_info: true })
+      .spread(function (saved) {
+        const updated = assign(saved, doc);
+
+        if(!getPermissions(saved, username).write) throw Boom.unauthorized();
+
+        return db.insertAsync(updated);
+      })
+      .catch(function (err) {
+        if(err.error === 'not_found')
+          return db.insertAsync(doc);
+
+        throw err;
+      });
+
+      /* eslint-enable camelcase */
   };
 
-  model.get = function (username, id, parse, cb) {
+  model.get = function (username, id, parse) {
+    debug('getting chapter: %s', id);
 
-    var jobs = [
+    return db
+      .getAsync(id)
+      .spread(function (doc) {
+        if(!getPermissions(doc, username).read) throw new Error('Unauthorized');
 
-      function fetchFromDb (done) {
-        db.get(id, function (err, doc) {
-          if (err) return done(err);
+        if(parse)
+          return marked(doc.markdown)
+            .then(function (html) {
+              doc.html = html;
 
-          done(null, doc);
+              return doc;
+            });
 
-        });
-      },
-
-      function returnBody (doc, done) {
-        if (parse) {
-
-          marked(doc.markdown, function (err, html) {
-            if (err) return done(err);
-
-            doc.html = html;
-
-            return done(null, doc);
-          });
-
-        } else {
-
-          done(null, doc);
-
-        }
-
-      }
-
-    ];
-
-    async.waterfall(jobs, function (err, result) {
-      if (err) return cb(err);
-
-      delete result._rev;
-
-      cb(null, result);
-    });
-
+        return doc;
+      });
   };
 
-  model.destroy = function (username, id, cb) {
+  model.destroy = function (username, id) {
     debug('removing chapter: %s', id);
 
-    var removeChapter = [
+    /* eslint-disable camelcase */
 
-      function getLatestRevision (done) {
+    return db
+      .getAsync(id, { revs_info: true })
+      .spread(function (doc) {
+        if(!getPermissions(doc, username).write)
+          throw new Error('Unauthorized');
 
-        /* eslint-disable camelcase */
+        return db
+          .destroyAsync(id, doc._rev);
+      });
 
-        db.get(id, { revs_info: true  }, function (err, doc) {
-
-        /* eslint-enable camelcase */
-
-          if (err) return done(err);
-
-          done(null, doc);
-
-        });
-
-      },
-
-      function deleteFromDb (doc, done) {
-
-        db.destroy(id, doc._rev, function (err, body) {
-
-          if (err) return done(err);
-
-          done(null, body);
-
-        });
-      }
-
-    ];
-
-    async.waterfall(removeChapter, function (err, result) {
-
-      if (err) return cb(err);
-
-      cb(null, result);
-
-    });
-
+      /* eslint-enable camelcase */
   };
 
-  model.list = function (username, title, cb) {
+  model.list = function (username, title) {
 
-    if(title) {
-
-      db.view('chapter', 'byTitle', { key: title }, function (err, body) {
-        if (err) return cb(err);
-
-        var list = body.rows.map(function (value) {
+    if(title)
+      return db
+        .viewAsync('chapter', 'byTitle', { key: title })
+        .filter(function (value) {
+          return getPermissions(value.value, username).read;
+        })
+        .map(function (value) {
+          return {
+            id:     value.id,
+            title:  value.value.title,
+            author: value.value.author
+          };
+        });
+    else
+      // Just list them all
+      /* eslint-disable camelcase */
+      return db
+        .listAsync({ include_docs: true })
+        .filter(function (value) {
+          return (value.id.match(/^_design+/) && getPermissions(value.value, username).read);
+        })
+        .map(function (value) {
           return {
             id:     value.id,
             title:  value.value.title,
@@ -129,47 +114,7 @@ module.exports = function (cfg) {
           };
         });
 
-        cb(null, list);
-      });
-
-    } else {
-
-
-      // Just list them all
-
-      /* eslint-disable camelcase */
-
-      db.list({ include_docs: true }, function (err, body) {
-
       /* eslint-enable camelcase */
-
-        if(err) return cb(err);
-
-        var list = body.rows.filter(function (val) {
-
-          if(val.id.match(/^_design+/)) {
-            return false;
-          } else {
-            return true;
-          }
-
-        })
-        .map(function (val) {
-
-          return {
-            title:  val.doc.title,
-            author: val.doc.author,
-            id:     val.id
-          };
-
-        });
-
-        cb(null, list);
-
-      });
-    }
-
-
   };
 
   return model;
