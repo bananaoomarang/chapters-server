@@ -121,11 +121,11 @@ lab.experiment('user', function () {
   lab.test('Update user', function (done) {
 
     app
-      .put('/users/' + user.username)
+      .patch('/users/' + user.username)
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .send({ scope: ['god']})
-      .expect('Content-Type', 'text/html; charset=utf-8')
+      .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
       .end(function(err, res) {
 
@@ -134,6 +134,7 @@ lab.experiment('user', function () {
         var doc = res.body;
 
         expect(doc).to.be.ok;
+        expect(doc.id).to.be.truthy;
 
         done(null);
 

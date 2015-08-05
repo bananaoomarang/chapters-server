@@ -75,4 +75,4 @@ module.exports = function (cfg) {
   };
 
   return model;
-}
+};

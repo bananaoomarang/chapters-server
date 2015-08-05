@@ -1,18 +1,19 @@
 'use strict';
 
-var async       = require('async');
-var debug       = require('debug')('users');
-var updateCouch = require('../../lib/update-couch-doc');
+const debug = require('debug')('users');
+const Boom  = require('boom');
+
+Object.assign = require('object-assign');
 
 module.exports = function (cfg) {
-  var authenticate = require('../../lib/authentication')(cfg);
+  const authenticate = require('../../lib/authentication')(cfg);
 
-  var model     = {};
-  var db        = cfg.usersdb;
-  var chaptersdb = cfg.chaptersdb;
+  const db           = cfg.usersdb;
+  const chaptersdb   = cfg.chaptersdb;
 
-  model.add = function (user, cb) {
+  let model = {};
 
+  model.add = function (user) {
     debug('creating %s', user.username);
 
     const doc = {
@@ -24,149 +25,93 @@ module.exports = function (cfg) {
       password: user.password
     };
 
-    db.insert(doc, function couchInsert (err, body) {
-
-      if (err) return cb(err);
-
-      return cb(null, body);
-
-    });
-
+    return db.insertAsync(doc);
   };
 
-  model.update = function (username, delta, cb) {
+  model.update = function (username, toUpdate, delta) {
+    debug('updating: %s', toUpdate);
 
-    debug('updating: %s', username);
+    /* eslint-disable camelcase */
+    return db
+      .getAsync('org.couchdb.user:' + toUpdate, { revs_info: true })
+      .spread(function (saved) {
+        if(username !== saved.name)
+          throw Boom.unauthorized();
 
-    updateCouch('org.couchdb.user:' + username, db, delta, function (err) {
+        const updated = Object.assign(saved, delta);
 
-      if (err) return cb(err);
+        return db.insertAsync(updated);
+      })
+      .catch(function (err) {
+        if(err.error === 'not_found')
+          throw Boom.notFound();
 
-      cb();
-
-    });
+        throw err;
+      });
+      /* eslint-enable camelcase */
   };
 
-  model.destroy = function (username, cb) {
+  model.destroy = function (username) {
+    const id = 'org.couchdb.user:' + username;
 
     debug('removing: %s', username);
 
-    var jobs = [
+    /* eslint-disable camelcase */
+    return db
+      .getAsync(id, { revs_info: true })
+      .spread(function (doc) {
+        if(username !== doc.name)
+          throw Boom.unauthorized();
 
-      function getLatestRevision (done) {
-
-      /* eslint-disable camelcase */
-
-        db.get('org.couchdb.user:' + username, { revs_info: true  }, function (err, body) {
-
-      /* eslint-enable camelcase */
-
-          if (err) return done(err);
-
-          return done(null, body._rev);
-
-        });
-
-      },
-
-      function deleteDocument (revision, done) {
-
-        db.destroy('org.couchdb.user:' + username, revision, function (err, body) {
-
-          if (err) return done(err);
-
-          return done(null, body);
-
-        });
-      }
-
-    ];
-
-    async.waterfall(jobs, function asyncFinished (err, result) {
-
-      debug(err);
-
-      if (err) return cb(err);
-
-      return cb(null, result);
-    });
-
+        return db
+          .destroyAsync(id, doc._rev);
+      });
+    /* eslint-enable camelcase */
   };
 
-  model.get = function (username, cb) {
+  model.get = function (username) {
+    const id = 'org.couchdb.user:' + username;
 
     debug('getting: %s', username);
 
-    db.get('org.couchdb.user:' + username, function (err, body) {
-
-      if (err) return cb(err);
-
-      cb(null, body);
-
-    });
-
+    return db.getAsync(id);
   };
 
-  model.getStories = function (username, userToList, cb) {
-
+  model.getStories = function (username, userToList) {
     debug('getting chapters for %s', userToList);
 
-    chaptersdb.view('chapter', 'byUser', { key: userToList }, function (err, body) {
-      if (err) return cb(err);
-
-      var list = body.rows.map(function (value) {
+    return chaptersdb
+      .viewAsync('chapter', 'byUser', { key: userToList })
+      .spread(function (body) {
+        return body.rows;
+      })
+      .map(function (doc) {
         return {
-          id:    value.id,
-          title: value.value.title
+          id:    doc.id,
+          title: doc.value.title
         };
       });
-
-      cb(null, list);
-    });
-
   };
 
-  model.list = function (cb) {
-
-    db.list(function getDBList (err, body) {
-
-      if(err) return cb(err);
-
-      var list = body.rows.filter(function (val) {
-
-        if(val.id.match(/^org\.couchdb\.user:+/)) {
-          return true;
-        } else {
-          return false;
-        }
-
+  model.list = function () {
+    return db
+      .listAsync()
+      .spread(function (body) {
+        return body.rows;
+      })
+      .filter(function (val) {
+        return val.id.match(/^org\.couchdb\.user:+/);
       })
       .map(function (val) {
-
         return {
           id: val.id.split(':')[1]
         };
-
       });
-
-      cb(null, list);
-
-    });
-
   };
 
-  model.getToken = function (user, cb) {
-
-    authenticate(user, function (err, token) {
-
-      if(err) return cb(err);
-
-      return cb(null, token);
-
-    });
-
+  model.getToken = function (user) {
+    return authenticate(user);
   };
 
   return model;
-
 };

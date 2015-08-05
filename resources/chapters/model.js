@@ -88,6 +88,9 @@ module.exports = function (cfg) {
     if(title)
       return db
         .viewAsync('chapter', 'byTitle', { key: title })
+        .then(function (body) {
+          return body.rows;
+        })
         .filter(function (value) {
           return getPermissions(value.value, username).read;
         })
@@ -103,6 +106,9 @@ module.exports = function (cfg) {
       /* eslint-disable camelcase */
       return db
         .listAsync({ include_docs: true })
+        .then(function (body) {
+          return body.rows;
+        })
         .filter(function (value) {
           return (value.id.match(/^_design+/) && getPermissions(value.value, username).read);
         })

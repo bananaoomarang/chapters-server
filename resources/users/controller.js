@@ -1,154 +1,156 @@
 'use strict';
 
-var Boom       = require('boom');
-var Joi        = require('joi');
-var series     = require('async').series;
-var userSchema = require('../../lib/schemas').user;
+const debug      = require('debug')('users');
+const Boom       = require('boom');
+const Joi        = require('joi');
+const Bluebird   = require('bluebird');
+const userSchema = require('../../lib/schemas').user;
+
+Bluebird.promisifyAll(Joi);
 
 module.exports = function (cfg) {
-  var users         = require('./model')(cfg);
+  const users = require('./model')(cfg);
 
-  var controller = {};
+  let controller = {};
 
-  controller.create = function (req, reply) {
+  controller.post = function (req, reply) {
+    const newUser = req.payload;
 
-    var newUser = req.payload;
+    Joi.validateAsync(newUser, userSchema)
+      .then(users.add.bind(null, newUser))
+      .spread(function (user) {
+        reply(user)
+          .code(201);
+      })
+      .catch(function (e) {
+          if (e) if (e.error === 'conflict')
+            return reply(Boom.badRequest('User already exists'));
 
-    series([
-      function validate(done) {
-        Joi.validate(newUser, userSchema, function (err) {
-          if (err) return done(Boom.wrap(err));
+          debug(e);
 
-          done();
-        });
-      },
-      function add(done) {
-        users.add(newUser, function confirmUserAdded (err, body) {
-          if (err) {
-            if (err.error === 'conflict')
-              return done( Boom.badRequest('User already exists') );
-            else
-              return done( Boom.wrap(err) );
-          }
-
-          done(null, body);
-
-        });
-      }
-    ], function (err, results) {
-      if(err) return reply(err);
-
-      return reply(results[1])
-        .code(201);
-    });
-
+          reply(Boom.wrap(e));
+      });
   };
 
   controller.login = function (req, reply) {
+    const credentials = req.payload;
 
-    var credentials = req.payload;
-
-    users.getToken(credentials, function (err, token) {
-      if (err) {
-        switch(err.message) {
+    users
+      .getToken(credentials)
+      .then(function (token) {
+          reply(token);
+      })
+      .catch(function (e) {
+        switch(e.message) {
           case 'missing':
-            return reply( Boom.unauthorized('User not found') );
+            return reply(Boom.unauthorized('User not found'));
+
           case 'Invalid password':
-            return reply( Boom.unauthorized('Invalid password') );
+            return reply(Boom.unauthorized('Invalid password'));
+
           default:
-            return reply( Boom.wrap(err) );
+            debug(e);
+
+            reply(Boom.wrap(e));
         }
-
-      }
-
-      return reply(null, token);
-
-    });
-
+      });
   };
 
-  controller.update = function (req, reply) {
+  controller.patch = function (req, reply) {
+    const username = req.auth.credentials.name;
+    const doc      = req.payload;
 
-    users.update(req.auth.credentials.name, req.payload, function(err) {
-      if (err) return reply( Boom.wrap(err) );
+    users
+      .update(username, username, doc)
+      .then(function (saved) {
+        reply({ id: saved._id });
+      })
+      .catch(function (e) {
+          debug(e);
 
-      reply('Successfully updated');
-    });
-
+          return reply(Boom.wrap(e));
+      });
   };
 
   controller.list = function (req, reply) {
+    users
+      .list()
+      .then(function (list) {
+        reply(list);
+      })
+      .catch(function (e) {
+          debug(e);
 
-    users.list(function getUserList (err, body) {
-
-      if (err) return reply( Boom.wrap(err) );
-
-      return reply(body);
-
-    });
-
+          reply(Boom.wrap(e));
+      });
   };
 
   controller.get = function (req, reply) {
+    const id = req.params.name;
 
-    users.get(req.params.name, function getUser (err, body) {
-
-      if (err) return reply( Boom.wrap(err) );
-
-      return reply({
-        name:  body.name,
-        roles: body.roles,
-        scope: body.scope
+    users
+      .get(id)
+      .then(function (user) {
+        reply({
+          name:  user.name,
+          roles: user.roles,
+          scope: user.scope
+        });
+      })
+      .catch(function (e) {
+        reply(Boom.wrap(e));
       });
-
-    });
-
   };
 
   controller.getStories = function (req, reply) {
-    var username   = null;
-    var userToList = req.params.name;
+    const username   = req.auth.credentials ? req.auth.credentials.name : '';
+    const userToList = req.params.name;
 
-    if (req.auth.credentials) username = req.auth.credentials.name;
-
-    users.getStories(username, userToList, function (err, list) {
-      if (err) return reply( Boom.wrap(err) );
-
-      return reply(list)
-        .code(200);
-    });
-
+    users
+      .getStories(username, userToList)
+      .then(function (list) {
+        reply(list);
+      })
+      .catch(function (e) {
+        reply(Boom.wrap(e));
+      });
   };
 
   controller.getCurrentUserStories = function (req, reply) {
-    var username   = req.auth.credentials.name;
+    const username   = req.auth.credentials.name;
+    const userToList = username;
 
-    users.getStories(username, username, function (err, list) {
-      if (err) return reply( Boom.wrap(err) );
+    users
+      .getStories(username, userToList)
+      .then(function (list) {
+        reply(list);
+      })
+      .catch(function (e) {
+        debug(e);
 
-      return reply(list)
-        .code(200);
-    });
+        reply(Boom.wrap(e));
+      });
   };
 
   controller.destroy = function (req, reply) {
-    users.destroy(req.params.name, function removeUser (err, body) {
+    const userToDestroy = req.params.name;
 
-      if (err) return reply( Boom.wrap(err) );
+    users
+      .destroy(userToDestroy)
+      .spread(function (body) {
+        reply(body);
+      })
+      .catch(function (e) {
+        debug(e);
 
-      return reply(body);
-
-    });
-
+        reply(Boom.wrap(e));
+      });
   };
 
   // This just serves as a quick token test
   controller.validate = function (req, reply) {
-
     reply(req.auth.credentials.name);
-
   };
 
   return controller;
-
 };
