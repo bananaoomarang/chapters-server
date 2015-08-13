@@ -20,7 +20,8 @@ module.exports = function (cfg) {
       title:  body.title || '',
       read:   body.read  || [username],
       write:  body.write || [username],
-      author: body.author
+      author: body.author,
+      owner:  body.owner
     };
 
     /* eslint-disable camelcase */
@@ -73,6 +74,30 @@ module.exports = function (cfg) {
 
       /* eslint-enable camelcase */
   };
+
+  model.list = function (username, title) {
+    debug('listing stories');
+
+    /* eslint-disable camelcase */
+    return db
+        .listAsync({ include_docs: true })
+        .spread(function (body) {
+          return body.rows;
+        })
+        .filter(function (value) {
+          return (!value.id.match(/^_design+/) && getPermissions(value.doc, username).read);
+        })
+        .map(function (value) {
+          debug(value);
+          return {
+            id:     value.id,
+            title:  value.value.title,
+            author: value.value.author
+          };
+        });
+
+      /* eslint-enable camelcase */
+  }
 
   return model;
 };

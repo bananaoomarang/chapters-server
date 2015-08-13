@@ -27,8 +27,8 @@ module.exports = function (cfg) {
 
     Joi.validateAsync(doc, schema)
       .then(stories.save.bind(null, username, doc))
-      .then(function (saved) {
-        reply({ id: saved[0].id });
+      .spread(function (saved) {
+        reply({ id: saved.id });
       })
       .catch(function (e) {
         debug(e);
@@ -75,6 +75,7 @@ module.exports = function (cfg) {
     const username = req.auth.credentials ? req.auth.credentials.name : null;
     const query    = req.query;
 
+    console.log(username);
     stories.list(username, query.title)
       .then(function (list) {
         reply(list);
