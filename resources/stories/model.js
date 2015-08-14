@@ -76,8 +76,6 @@ module.exports = function (cfg) {
   };
 
   model.list = function (username, title) {
-    debug('listing stories');
-
     /* eslint-disable camelcase */
     return db
         .listAsync({ include_docs: true })
@@ -91,8 +89,8 @@ module.exports = function (cfg) {
           debug(value);
           return {
             id:     value.id,
-            title:  value.value.title,
-            author: value.value.author
+            title:  value.doc.title,
+            author: value.doc.author
           };
         });
 

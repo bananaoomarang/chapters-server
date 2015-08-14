@@ -75,7 +75,8 @@ module.exports = function (cfg) {
     const username = req.auth.credentials ? req.auth.credentials.name : null;
     const query    = req.query;
 
-    console.log(username);
+    debug('listing stories as %s', username || 'anonymous');
+
     stories.list(username, query.title)
       .then(function (list) {
         reply(list);
