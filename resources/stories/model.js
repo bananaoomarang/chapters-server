@@ -28,7 +28,7 @@ module.exports = function (cfg) {
 
     return db
       .getAsync(doc._id, { revs_info: true })
-      .then(function (saved) {
+      .spread(function (saved) {
         const updated = assign(saved, doc);
 
         if(!getPermissions(saved, username).write)
@@ -49,7 +49,8 @@ module.exports = function (cfg) {
 
     return db
       .getAsync(id)
-      .then(function (doc) {
+      .spread(function (doc) {
+        debug(doc);
         if(!getPermissions(doc, username).read)
           throw Boom.unauthorized();
 
@@ -64,7 +65,7 @@ module.exports = function (cfg) {
 
     return db
       .getAsync(id, { revs_info: true })
-      .then(function (doc) {
+      .spread(function (doc) {
         if(!getPermissions(doc, username).write)
           throw new Error('Unauthorized');
 

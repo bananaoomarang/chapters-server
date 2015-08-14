@@ -42,7 +42,7 @@ module.exports = function (cfg) {
     const delta    = req.payload;
 
     sections.update(username, delta)
-      .then(function (doc) {
+      .spread(function (doc) {
         reply({ id: doc.id });
       })
       .catch(function (e) {
@@ -59,7 +59,7 @@ module.exports = function (cfg) {
     const id       = [req.params.id, req.payload.title].join('!');
 
     sections.get(username, id)
-      .then(function (doc) {
+      .spread(function (doc) {
         reply(doc);
       })
       .catch(function (e) {
@@ -76,7 +76,7 @@ module.exports = function (cfg) {
     const id       = [req.params.id, req.payload.title].join('!');
 
     sections.destroy(username, id)
-      .then(function (doc) {
+      .spread(function (doc) {
         reply({ id: doc.id });
       })
       .catch(function (e) {

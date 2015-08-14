@@ -13,7 +13,7 @@ module.exports = function (cfg) {
   let stories    = require('./model')(cfg);
 
   controller.post = function (req, reply) {
-    const username = req.auth.credentials.name;
+    const username = req.auth.credentials ? req.auth.credentials.name : null;
     const body     = req.payload;
 
     const doc = {
@@ -37,7 +37,7 @@ module.exports = function (cfg) {
   };
 
   controller.patch = function (req, reply) {
-    const username = req.auth.credentias.name;
+    const username = req.auth.credentials ? req.auth.credentials.name : null;
     const delta    = req.payload;
 
     stories.update(username, delta)
@@ -54,8 +54,10 @@ module.exports = function (cfg) {
   };
 
   controller.get = function (req, reply) {
-    const username = req.auth.credentias.name;
-    const id       = [req.params.id, req.payload.title].join('!');
+    const username = req.auth.credentials ? req.auth.credentials.name : null;
+    const id       = req.params.id;
+
+    debug('getting story %s as %s', id, username);
 
     stories.get(username, id)
       .then(function (doc) {
