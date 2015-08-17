@@ -18,18 +18,18 @@ module.exports = function (cfg) {
     const body     = req.payload;
 
     const doc = {
-      id:          [req.params.id, body.title].join('!'),
+      id:          [req.params.id, encodeURIComponent(body.title)].join('!'),
       read:        body.read        || [username],
       write:       body.write       || [username],
       title:       body.title,
-      chapters:    body.chapters    || [],
-      description: body.description || '???'
+      description: body.description || '???',
+      chapters:    body.chapters || []
     };
 
     Joi.validateAsync(doc, schema)
-      .then(sections.save.bind(null, username, doc))
+      .return(sections.save(username, doc))
       .then(function () {
-        reply({ id: doc.id });
+        reply({ id: doc.id.split('!')[1] });
       })
       .catch(function (e) {
         debug(e);
@@ -55,11 +55,20 @@ module.exports = function (cfg) {
   };
 
   controller.get = function (req, reply) {
-    const username = req.auth.credentias.name;
-    const id       = [req.params.id, req.payload.title].join('!');
+    const username = req.auth.credentials.name;
+    const id       = [req.params.id, encodeURIComponent(req.params.section)].join('!');
 
     sections.get(username, id)
-      .spread(function (doc) {
+      .then(function (doc) {
+        doc.id = doc._id.split('!')[1];
+        delete doc._id;
+
+        doc.chapters
+          .forEach(function (chapter) {
+            chapter.id = chapter._id.split('!')[2];
+            delete chapter._id;
+          });
+
         reply(doc);
       })
       .catch(function (e) {

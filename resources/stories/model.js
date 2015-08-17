@@ -2,12 +2,14 @@
 
 const debug          = require('debug')('stories');
 const uuid           = require('uuid');
-const assign         = require('object-assign');
 const Boom           = require('boom');
+const Bluebird       = require('bluebird');
 const getPermissions = require('../../lib/permissions').figure;
 
+Object.assign        = require('object-assign');
+
 module.exports = function (cfg) {
-  const db = cfg.storiesdb;
+  const db       = cfg.storiesdb;
 
   let model = {};
 
@@ -21,7 +23,9 @@ module.exports = function (cfg) {
       read:   body.read  || [username],
       write:  body.write || [username],
       author: body.author,
-      owner:  body.owner
+      owner:  body.owner,
+      sections: body.sections,
+      chapters: body.chapters
     };
 
     /* eslint-disable camelcase */
@@ -29,32 +33,69 @@ module.exports = function (cfg) {
     return db
       .getAsync(doc._id, { revs_info: true })
       .spread(function (saved) {
-        const updated = assign(saved, doc);
+        const updated = Object.assign(saved, doc);
 
         if(!getPermissions(saved, username).write)
           throw Boom.unauthorized();
 
         return db.insertAsync(updated);
       })
-      .catch(function (err) {
-        if(err.error === 'not_found')
+      .catch(function (e) {
+        if(e.error === 'not_found')
           return db.insertAsync(doc);
+
+        throw e;
+      });
+
+      /* eslint-enable camelcase */
+  };
+
+  model.addSection = function (username, sectionId) {
+    debug('adding section %s', sectionId);
+
+    const storyId    = sectionId.split('!')[0];
+
+    /* eslint-disable camelcase */
+
+    return db
+      .getAsync(storyId, { revs_info: true })
+      .spread(function (saved) {
+        const updated = Object.assign(saved, {
+          sections: saved.sections.concat(sectionId)
+        });
+
+        if(!getPermissions(saved, username).write)
+          throw Boom.unauthorized();
+
+        return db.insertAsync(updated);
       });
 
       /* eslint-enable camelcase */
   };
 
   model.get = function (username, id) {
+    const sections = require('../sections/model')(cfg);
+
     debug('getting story: ', id);
 
     return db
       .getAsync(id)
       .spread(function (doc) {
-        debug(doc);
         if(!getPermissions(doc, username).read)
           throw Boom.unauthorized();
 
-        return doc;
+        const storySections = doc.sections
+          .map(function (sectionId) {
+            return sections
+              .get(username, sectionId);
+          });
+
+        return Bluebird.all(storySections)
+          .then(function (results) {
+            doc.sections = results;
+
+            return doc;
+          });
       });
   };
 
@@ -78,13 +119,14 @@ module.exports = function (cfg) {
 
   model.list = function (username, title) {
     /* eslint-disable camelcase */
+
     return db
         .listAsync({ include_docs: true })
         .spread(function (body) {
           return body.rows;
         })
         .filter(function (value) {
-          return (!value.id.match(/^_design+/) && getPermissions(value.doc, username).read);
+          return (value.doc.type === 'story' && getPermissions(value.doc, username).read);
         })
         .map(function (value) {
           debug(value);

@@ -41,7 +41,7 @@ module.exports = function (cfg) {
     const username = req.auth.credentials.name;
 
     const doc = {
-      id:       uuid.v4(),
+      id:       [req.params.id, encodeURIComponent(req.params.section), encodeURIComponent(req.payload.title)].join('!'),
       read:     req.payload.read  || [username],
       write:    req.payload.write || [username],
       title:    req.payload.title,
@@ -114,10 +114,11 @@ module.exports = function (cfg) {
   };
 
   controller.get = function (req, reply) {
-    const id     = req.params.chapter;
+    const id       = [req.params.id, encodeURIComponent(req.params.section), encodeURIComponent(req.params.chapter)].join('!');
     const username = req.auth.credentials ? req.auth.credentials.name : null;
 
     // Parse markdown by default
+    // XXX This is some bullshit code right here bro
     let parse = true;
 
     switch (req.query.parse) {
@@ -134,6 +135,9 @@ module.exports = function (cfg) {
     chapters
       .get(username, id, parse)
       .then(function (doc) {
+        doc.id = doc._id.split('!')[2];
+        delete doc._id;
+
         reply(doc);
       })
       .catch(function (e) {
@@ -147,7 +151,7 @@ module.exports = function (cfg) {
 
   controller.destroy = function (req, reply) {
     const username = req.auth.credentials.name;
-    const id       = req.params.chapter;
+    const id       = [req.params.id, encodeURIComponent(req.params.section), encodeURIComponent(req.params.chapter)].join('!');
 
     chapters.destroy(username, id)
       .then(function () {

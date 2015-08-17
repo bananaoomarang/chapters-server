@@ -9,8 +9,9 @@ const schema   = require('../../lib/schemas').story;
 Bluebird.promisifyAll(Joi);
 
 module.exports = function (cfg) {
+  const stories  = require('./model')(cfg);
+
   let controller = {};
-  let stories    = require('./model')(cfg);
 
   controller.post = function (req, reply) {
     const username = req.auth.credentials ? req.auth.credentials.name : null;
@@ -22,8 +23,11 @@ module.exports = function (cfg) {
       title:    body.title,
       author:   body.author   || username,
       owner:    username,
-      chapters: body.chapters || []
+      sections: body.sections,
+      chapters: body.chapters
     };
+
+    debug(doc);
 
     Joi.validateAsync(doc, schema)
       .then(stories.save.bind(null, username, doc))
@@ -61,6 +65,12 @@ module.exports = function (cfg) {
 
     stories.get(username, id)
       .then(function (doc) {
+        doc.sections
+          .forEach(function (section) {
+            section.id = section._id.split('!')[1];
+            delete section._id;
+          });
+
         reply(doc);
       })
       .catch(function (e) {
