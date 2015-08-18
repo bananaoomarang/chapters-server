@@ -117,10 +117,27 @@ module.exports = function (cfg) {
       /* eslint-enable camelcase */
   };
 
-  model.list = function (username, title) {
+  model.list = function (username, userToList) {
     /* eslint-disable camelcase */
 
-    return db
+    if(userToList)
+     return db
+        .viewAsync('story', 'byUser', { key: userToList })
+        .spread(function (body) {
+          return body.rows;
+        })
+        .filter(function (value) {
+          return (value.value.type === 'story' && getPermissions(value.value, username).read);
+        })
+        .map(function (value) {
+          return {
+            id:     value.id,
+            title:  value.value.title,
+            author: value.value.author
+          };
+        });
+    else
+      return db
         .listAsync({ include_docs: true })
         .spread(function (body) {
           return body.rows;

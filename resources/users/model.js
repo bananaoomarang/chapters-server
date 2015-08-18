@@ -78,17 +78,17 @@ module.exports = function (cfg) {
   };
 
   model.getStories = function (username, userToList) {
-    debug('getting chapters for %s', userToList);
+    const stories = require('../stories/model')(cfg);
 
-    return chaptersdb
-      .viewAsync('chapter', 'byUser', { key: userToList })
-      .spread(function (body) {
-        return body.rows;
-      })
+    debug('%s getting stories for %s', username, userToList);
+
+    return stories
+      .list(username, userToList)
       .map(function (doc) {
+        debug(doc);
         return {
           id:    doc.id,
-          title: doc.value.title
+          title: doc.title
         };
       });
   };

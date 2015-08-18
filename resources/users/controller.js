@@ -17,18 +17,18 @@ module.exports = function (cfg) {
     const newUser = req.payload;
 
     Joi.validateAsync(newUser, userSchema)
-      .then(users.add.bind(null, newUser))
+      .return(users.add(newUser))
       .spread(function (user) {
         reply(user)
           .code(201);
       })
       .catch(function (e) {
-          if (e) if (e.error === 'conflict')
-            return reply(Boom.badRequest('User already exists'));
+        if (e.error === 'conflict')
+          return reply(Boom.badRequest('User already exists'));
 
-          debug(e);
+        debug(e);
 
-          reply(Boom.wrap(e));
+        reply(Boom.wrap(e));
       });
   };
 
@@ -117,7 +117,7 @@ module.exports = function (cfg) {
   };
 
   controller.getCurrentUserStories = function (req, reply) {
-    const username   = req.auth.credentials.name;
+    const username   = req.auth.credentials ? req.auth.credentials.name : '';
     const userToList = username;
 
     users
