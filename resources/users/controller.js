@@ -14,7 +14,13 @@ module.exports = function (cfg) {
   let controller = {};
 
   controller.post = function (req, reply) {
-    const newUser = req.payload;
+    const user = req.payload;
+
+    const doc = {
+      username: newUser.username.toLowerCase(),
+      email:    newUser.email,
+      password: newUser.password
+    };
 
     Joi.validateAsync(newUser, userSchema)
       .return(users.add(newUser))
