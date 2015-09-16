@@ -27,6 +27,8 @@ module.exports = function (cfg) {
       chapters:    body.chapters
     };
 
+    debug(doc.chapters);
+
     /* eslint-disable camelcase */
 
     return db

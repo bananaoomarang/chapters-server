@@ -1,10 +1,11 @@
 'use strict';
 
-const debug    = require('debug')('sections');
-const Boom     = require('boom');
-const Bluebird = require('bluebird');
-const Joi      = require('joi');
-const schema   = require('../../lib/schemas').section;
+const debug       = require('debug')('sections');
+const Boom        = require('boom');
+const Bluebird    = require('bluebird');
+const Joi         = require('joi');
+const schema      = require('../../lib/schemas').section;
+const patchSchema = require('../../lib/schemas').patchSection;
 
 Bluebird.promisifyAll(Joi);
 
@@ -38,11 +39,12 @@ module.exports = function (cfg) {
   };
 
   controller.patch = function (req, reply) {
-    const username = req.auth.credentias.name;
+    const username = req.auth.credentials.name;
     const delta    = req.payload;
 
-    sections.update(username, delta)
-      .spread(function (doc) {
+    Joi.validateAsync(delta, patchSchema)
+      .return(sections.save(username, delta))
+      .then(function (doc) {
         reply({ id: doc.id });
       })
       .catch(function (e) {
