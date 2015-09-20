@@ -14,18 +14,16 @@ module.exports = function (cfg) {
   let controller = {};
 
   controller.post = function (req, reply) {
-    const user = req.payload;
-
     const doc = {
-      username: newUser.username.toLowerCase(),
-      email:    newUser.email,
-      password: newUser.password
+      username: req.payload.username.toLowerCase(),
+      email:    req.payload.email,
+      password: req.payload.password
     };
 
-    Joi.validateAsync(newUser, userSchema)
-      .return(users.add(newUser))
-      .spread(function (user) {
-        reply(user)
+    Joi.validateAsync(doc, userSchema)
+      .then(users.add.bind(null, doc))
+      .spread(function (result) {
+        reply({ id: result.id })
           .code(201);
       })
       .catch(function (e) {
@@ -108,7 +106,7 @@ module.exports = function (cfg) {
       });
   };
 
-  controller.getStories = function (req, reply) {
+  controller.getChapters= function (req, reply) {
     const username   = req.auth.credentials ? req.auth.credentials.name : '';
     const userToList = req.params.name;
 
@@ -122,7 +120,7 @@ module.exports = function (cfg) {
       });
   };
 
-  controller.getCurrentUserStories = function (req, reply) {
+  controller.getCurrentUserChapters = function (req, reply) {
     const username   = req.auth.credentials ? req.auth.credentials.name : '';
     const userToList = username;
 

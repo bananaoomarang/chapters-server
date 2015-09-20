@@ -11,7 +11,7 @@ var lab    = exports.lab = Lab.script();
 var expect = Code.expect;
 var app    = supertest('http://localhost:8888');
 
-lab.experiment('user', function () {
+lab.experiment('user', function() {
 
   var user = {
     username: 'testuser-user',
@@ -25,13 +25,16 @@ lab.experiment('user', function () {
     email:    'reallycool@hotmail.com'
   };
 
-  lab.before(function (done) {
-    server.start();
+  lab.before(function(done) {
+    server.start(function(e) {
+      if(e)
+        return done(e);
 
-    done();
+      done();
+    });
   });
 
-  lab.test('Create user', function (done) {
+  lab.test('Create user', function(done) {
 
     app
       .post('/users/create')
@@ -39,31 +42,30 @@ lab.experiment('user', function () {
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(201)
-      .end(function(err, res) {
-
-        if (err) return done(err);
+      .end(function(e, res) {
+        if(e)
+          return done(e);
 
         var doc = res.body;
 
-        expect(doc.ok).to.be.true();
+        expect(res.ok).to.be.true();
         expect(doc.id).to.equal('org.couchdb.user:' + user.username);
 
         done(null);
-
       });
 
   });
 
-  lab.test('Attempt login with non-existant user', function (done) {
+  lab.test('Attempt login with non-existant user', function(done) {
 
     app
       .post('/users/login')
       .send({ username: 'whereami', password: user.password })
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(401)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -75,16 +77,16 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('Login user', function (done) {
+  lab.test('Login user', function(done) {
 
     app
       .post('/users/login')
       .send(user)
       .expect('Content-Type', 'text/html; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.text;
 
@@ -98,15 +100,15 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('Validate token', function (done) {
+  lab.test('Validate token', function(done) {
 
     app
       .get('/users/validate')
       .set('Authorization', 'Bearer ' + user.token)
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -118,7 +120,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('Update user', function (done) {
+  lab.test('Update user', function(done) {
 
     app
       .patch('/users/' + user.username)
@@ -127,9 +129,9 @@ lab.experiment('user', function () {
       .send({ scope: ['god']})
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -142,7 +144,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('Get user', function (done) {
+  lab.test('Get user', function(done) {
 
     app
       .get('/users/' + user.username)
@@ -150,9 +152,9 @@ lab.experiment('user', function () {
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -164,7 +166,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('List user\'s chapters', function (done) {
+  lab.test('List user\'s chapters', function(done) {
 
     app
       .get('/users/' + user.username + '/chapters')
@@ -172,9 +174,9 @@ lab.experiment('user', function () {
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -186,7 +188,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('List logged in user\'s chapters', function (done) {
+  lab.test('List logged in user\'s chapters', function(done) {
 
     app
       .get('/users/current/chapters')
@@ -194,9 +196,9 @@ lab.experiment('user', function () {
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -208,7 +210,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('List users', function (done) {
+  lab.test('List users', function(done) {
 
     app
       .get('/users')
@@ -216,9 +218,9 @@ lab.experiment('user', function () {
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -230,7 +232,7 @@ lab.experiment('user', function () {
 
   });
 
-  lab.test('Delete user', function (done) {
+  lab.test('Delete user', function(done) {
 
     app
       .del('/users/' + user.username)
@@ -238,9 +240,9 @@ lab.experiment('user', function () {
       .set('Accept', 'application/json')
       .expect('Content-Type', 'application/json; charset=utf-8')
       .expect(200)
-      .end(function(err, res) {
+      .end(function(e, res) {
 
-        if (err) return done(err);
+        if(e) return done(e);
 
         var doc = res.body;
 
@@ -252,10 +254,13 @@ lab.experiment('user', function () {
 
   });
 
-  lab.after(function (done) {
-    server.stop();
+  lab.after(function(done) {
+    server.stop(function(e) {
+      if(e)
+        return done(e);
 
-    done();
+      done();
+    });
   });
 
 });

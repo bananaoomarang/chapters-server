@@ -2,24 +2,20 @@
 
 /* eslint-disable no-unused-expressions */
 
-var Lab            = require('lab');
-var Code           = require('code');
-var supertest      = require('supertest');
-var async          = require('async');
-var path           = require('path');
-var server         = require('../');
-var chapterFixture = require('./fixtures/chapter.json');
-var storyFixture   = require('./fixtures/story.json');
-var sectionFixture = require('./fixtures/section.json');
+const Lab            = require('lab');
+const Code           = require('code');
+const supertest      = require('supertest');
+const async          = require('async');
+const path           = require('path');
+const server         = require('../');
+const chapterFixture = require('./fixtures/chapter.json');
 
-var lab    = exports.lab = Lab.script();
-var expect = Code.expect;
-var app    = supertest('http://localhost:8888');
+const lab    = exports.lab = Lab.script();
+const expect = Code.expect;
+const app    = supertest('http://localhost:8888');
 
 lab.experiment('chapter', function () {
-
   var chapterFromDisk = {
-    id:   null,
     name: 'mock-chapter',
     path: 'test/fixtures/chapter.md'
   };
@@ -30,8 +26,10 @@ lab.experiment('chapter', function () {
     token:    ''
   };
 
-  lab.before(function (done) {
+  var chapterId         = '';
+  var chapterFromDiskId = '';
 
+  lab.before(function (done) {
     var userForRegistration = {
       username: user.username,
       password: 'password',
@@ -41,7 +39,8 @@ lab.experiment('chapter', function () {
     var jobs = [
       function startServer(cb) {
         server.start(function (err) {
-          if (err) return cb(err);
+          if(err)
+            return cb(err);
 
           cb(null);
         });
@@ -52,11 +51,10 @@ lab.experiment('chapter', function () {
           .send(userForRegistration)
           .set('Accept', 'application/json')
           .end(function(err) {
-
-            if (err) return cb(err);
+            if(err)
+              return cb(err);
 
             cb(null);
-
           });
       },
       function getToken(cb) {
@@ -64,46 +62,19 @@ lab.experiment('chapter', function () {
           .post('/users/login')
           .send(user)
           .end(function (err, res) {
-            if (err) return cb(res.body.message);
+            if(err)
+              return cb(res.body.message);
 
             user.token = res.text;
 
             cb(null);
-
         });
-      },
-      function uploadStory(cb) {
-        app
-          .post('/stories')
-          .send(storyFixture)
-          .set('Accept', 'application/json')
-          .set('Authorization', 'Bearer ' + user.token)
-          .end(function (err, res) {
-            if (err) return cb(err);
-
-            storyFixture.id = res.body.id;
-
-            cb(null);
-          });
-      },
-      function uploadSection(cb) {
-        app
-          .post('/stories/' + storyFixture.id)
-          .send(sectionFixture)
-          .set('Accept', 'application/json')
-          .set('Authorization', 'Bearer ' + user.token)
-          .end(function (err, res) {
-            if (err) return cb(err);
-
-            sectionFixture.id = res.body.id;
-
-            cb(null);
-          });
       }
     ];
 
     async.series(jobs, function (err) {
-      if (err) return done(err);
+      if(err)
+        return done(err);
 
       done(null);
     });
@@ -111,35 +82,29 @@ lab.experiment('chapter', function () {
   });
 
   lab.test('Create chapter by uploading markdown file', function (done) {
-
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id);
     app
-      .put(url)
+      .put('/chapters')
       .attach('file', chapterFromDisk.path)
       .set('Authorization', 'Bearer ' + user.token)
       .expect(201)
       .end(function (err, res) {
-        if (err) return done(err);
+        if (err)
+          return done(err);
 
         expect(res).to.be.ok;
         expect(res.body.id);
 
-        chapterFromDisk.id = res.body.id;
+        chapterFromDiskId = res.body.id;
 
         done(null);
-
       });
-
   });
 
   lab.test('Create chapter from JSON (ie, exported from frontend editor)', function (done) {
-
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id);
-
     chapterFixture.title = 'Not the Old One';
 
     app
-      .post(url)
+      .post('/chapters')
       .set('Authorization', 'Bearer ' + user.token)
       .set('Accept', 'application/json')
       .send(chapterFixture)
@@ -152,7 +117,7 @@ lab.experiment('chapter', function () {
         expect(res.body.id);
 
         // TODO  Dirty.
-        chapterFixture.id = res.body.id;
+        chapterId = res.body.id;
 
         done(null);
 
@@ -161,8 +126,7 @@ lab.experiment('chapter', function () {
   });
 
   lab.test('edit non-existing chapter', function (done) {
-
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id, 'fake_id');
+    const url = path.join('/chapters', 'not-there');
 
     app
       .patch(url)
@@ -171,19 +135,18 @@ lab.experiment('chapter', function () {
       .send(chapterFixture)
       .expect(404)
       .end(function (err, res) {
-
-        if (err) return done(err);
+        if (err)
+          return done(err);
 
         expect(res).not.to.be.ok;
 
         done(null);
-
       });
 
   });
 
   lab.test('edit chapter', function (done) {
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id, chapterFixture.id);
+    const url = path.join('/chapters', chapterId);
 
     app
       .patch(url)
@@ -192,21 +155,19 @@ lab.experiment('chapter', function () {
       .send(chapterFixture)
       .expect(200)
       .end(function (err, res) {
-
-        if (err) return done(err);
+        if(err)
+          return done(err);
 
         expect(res).to.be.ok;
         expect(res.body.id);
 
         done(null);
-
       });
-
   });
 
 
   lab.test('get chapter', function (done) {
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id, chapterFixture.id);
+    const url = path.join('/chapters', chapterId);
 
     app
       .get(url)
@@ -226,7 +187,7 @@ lab.experiment('chapter', function () {
   });
 
   lab.test('delete chapter', function (done) {
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id, chapterFixture.id);
+    const url = path.join('/chapters', chapterId);
 
     app
       .delete(url)
@@ -246,7 +207,7 @@ lab.experiment('chapter', function () {
 
   lab.after(function (done) {
     // TODO multiple chapter delete should be part of test
-    const url = path.join('/stories', storyFixture.id, sectionFixture.id, chapterFromDisk.id);
+    const url = path.join('/chapters', chapterFromDiskId);
 
     app
       .del(url)

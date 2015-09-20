@@ -1,0 +1,25 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const Bluebird     = require('bluebird');
+const orientServer = require('../lib/orient');
+const nano         = require('nano')('http://localhost:5984');
+
+Bluebird.promisifyAll(nano.db);
+
+nano
+  .db
+  .destroyAsync('sessions')
+  .tap(function () {
+    console.log('Database \'sessions\' deleted.');
+  })
+  .return(orientServer.drop('chapters'))
+  .tap(function () {
+    console.log('Graph \'chapters\' deleted.');
+
+    process.exit(0);
+  })
+  .catch(function (e) {
+    throw e;
+  });

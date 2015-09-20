@@ -2,9 +2,114 @@
 
 'use strict';
 
-var nano = require('nano')('http://localhost:5984');
+const Bluebird     = require('bluebird');
+const nano         = require('nano')('http://localhost:5984');
+const orientServer = require('../lib/orient');
 
-nano.db.create('stories', function (err, body) {
-  if (!err) console.log('Database \'stories\' created.');
-  else console.log(err);
-});
+Bluebird.promisifyAll(nano.db);
+
+function initDatabases() {
+  const chaptersdb   = orientServer.use('chapters');
+
+  return chaptersdb
+    .class
+    .create('Chapter', 'V')
+    .tap(function () {
+      console.log('Added vertex class \'Chapter\'');
+    })
+
+    .return(chaptersdb.class.create('Author', 'Chapter'))
+    .tap(function () {
+      console.log('Added vertex class \'Author\'');
+    })
+
+    .return(chaptersdb.class.create('Identity', 'V'))
+    .tap(function () {
+      console.log('Added vertex class \'Author\'');
+    })
+
+    .return(chaptersdb.class.create('Leads', 'E'))
+    .tap(function () {
+      console.log('Added edge class \'Leads\'');
+    })
+
+    .return(chaptersdb.class.create('Wrote', 'E'))
+    .tap(function () {
+      console.log('Added edge class \'Wrote\'');
+    })
+
+    .catch(function (e) {
+      console.error(e);
+    });
+}
+
+function createClassProps() {
+  const chaptersdb = orientServer.use('chapters');
+
+  return chaptersdb
+    .class
+    .get('Chapter')
+    .get('property')
+    .call('create', [
+      {
+        name: 'title',
+        type: 'string'
+      },
+      {
+        name: 'author',
+        type: 'string'
+      },
+      {
+        name: 'description',
+        type: 'string'
+      },
+      {
+        name: 'markdown',
+        type: 'string'
+      },
+      {
+        name: 'owner',
+        type: 'link'
+      },
+      {
+        name: 'read',
+        type: 'linklist'
+      },
+      {
+        name: 'write',
+        type: 'linklist'
+      }
+  ])
+
+  .return(chaptersdb.class.get('Identity'))
+  .get('property')
+  .call('create', [
+    {
+      name: 'couchId',
+      type: 'string'
+    }
+  ]);
+}
+
+nano.db.createAsync('sessions')
+  .then(function () {
+    console.log('Database \'sessions\' created.');
+  })
+  .return(orientServer.create({
+    name:    'chapters',
+    type:    'graph',
+    storage: 'plocal'
+  }))
+  .tap(function () {
+    console.log('Created OrientDB graph \'chapters\'');
+  })
+  .return(initDatabases())
+  .return(createClassProps())
+  .tap(function () {
+    console.log('Successfully set up databases');
+
+    process.exit(0);
+  })
+  .catch(function (e) {
+    console.error(e);
+  });

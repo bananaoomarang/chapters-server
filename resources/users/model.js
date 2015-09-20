@@ -8,8 +8,8 @@ Object.assign = require('object-assign');
 module.exports = function (cfg) {
   const authenticate = require('../../lib/authentication')(cfg);
 
-  const db           = cfg.usersdb;
-  const chaptersdb   = cfg.chaptersdb;
+  const db         = cfg.usersdb;
+  const chaptersdb = cfg.chaptersdb
 
   let model = {};
 
@@ -25,7 +25,14 @@ module.exports = function (cfg) {
       password: user.password
     };
 
-    return db.insertAsync(doc);
+    // Insert new identity into graph
+    return chaptersdb
+      .class
+      .get('Identity')
+      .call('create', { couchId: doc._id })
+
+   // Save user to couch
+      .return(db.insertAsync(doc));
   };
 
   model.update = function (username, toUpdate, delta) {
@@ -78,11 +85,12 @@ module.exports = function (cfg) {
   };
 
   model.getStories = function (username, userToList) {
-    const stories = require('../stories/model')(cfg);
+    const chapters = require('../chapters/model')(cfg);
 
-    debug('%s getting stories for %s', username, userToList);
+    debug('%s getting chapters for %s', username, userToList);
 
-    return stories
+    // XXX This should be O(1), interface with db directly
+    return chapters
       .list(username, userToList)
       .map(function (doc) {
         debug(doc);

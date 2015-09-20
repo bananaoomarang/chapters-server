@@ -1,11 +1,12 @@
 'use strict';
 
-const debug         = require('debug')('chapters');
-const Boom          = require('boom');
-const uuid          = require('uuid');
-const Bluebird      = require('bluebird');
-const Joi           = require('joi');
-const chapterSchema = require('../../lib/schemas').chapter;
+const debug              = require('debug')('chapters');
+const Boom               = require('boom');
+const Bluebird           = require('bluebird');
+const Joi                = require('joi');
+const chapterSchema      = require('../../lib/schemas').chapter;
+const patchChapterSchema = require('../../lib/schemas').patchChapter;
+const isRid              = require('../../lib/is-rid');
 
 Bluebird.promisifyAll(Joi);
 
@@ -33,57 +34,68 @@ function parseMdStream (stream, doc) {
 
 
 module.exports = function (cfg) {
+  const chapters = require('./model')(cfg);
+
   let controller = {};
-  let chapters   = require('./model')(cfg);
 
   // Receive JSON payload from our editor
   controller.post = function (req, reply) {
     const username = req.auth.credentials.name;
 
     const doc = {
-      id:       [req.params.id, encodeURIComponent(req.params.section), encodeURIComponent(req.payload.title)].join('!'),
-      read:     req.payload.read  || [username],
-      write:    req.payload.write || [username],
-      title:    req.payload.title,
-      author:   req.payload.author || username,
-      markdown: req.payload.markdown
+      read:        req.payload.read        || [username],
+      write:       req.payload.write       || [username],
+      owner:       username,
+
+      title:       req.payload.title,
+      author:      req.payload.author      || username,
+      markdown:    req.payload.markdown
     };
 
-    chapters.save(username, doc)
-      .then(function () {
-        reply({ id: doc.id })
+    Joi
+      .validateAsync(doc, chapterSchema)
+      .then(chapters.save.bind(null, username, doc))
+      .then(function (result) {
+        reply(null, { id: result.id })
           .code(201);
       })
       .catch(function (e) {
-        if(e.error === 'not_found')
-          return reply(Boom.notFound(e));
-
         debug(e);
+
+        if(e.name === 'ValidationError')
+          return reply(Boom.badRequest());
+
         reply(Boom.wrap(e));
       });
   };
 
   // Multipart file upload
   controller.put = function (req, reply) {
-    const username = req.auth.credentials.name;
+    const username    = req.auth.credentials.name;
 
-    let doc = {
-      id:       uuid.v4(),
-      read:     req.payload.read  || [username],
-      write:    req.payload.write || [username],
+    const doc = {
+      read:     req.payload.read   || [username],
+      write:    req.payload.write  || [username],
+      owner:    username,
+
       title:    trimExtension(req.payload.file.hapi.filename),
-      author:   username,
+      author:   req.payload.author || username,
       markdown: ''
     };
 
-    return parseMdStream(req.payload.file, doc)
+    parseMdStream(req.payload.file, doc)
+      .then(Joi.validateAsync.bind(Joi, doc, chapterSchema))
       .then(chapters.save.bind(null, username, doc))
-      .then(function () {
-        reply(null, { id: doc.id })
+      .then(function (record) {
+        reply(null, { id: record.id } )
           .code(201);
       })
       .catch(function (e) {
         debug(e);
+
+        if(e.name === 'ValidationError')
+          return reply(Boom.badRequest());
+
         reply(Boom.wrap(e));
       });
   };
@@ -91,21 +103,20 @@ module.exports = function (cfg) {
   controller.patch  = function (req, reply) {
     const username = req.auth.credentials.name;
 
-    const doc = {
-      id:       req.params.chapter,
-      title:    req.payload.title,
-      author:   username,
-      markdown: req.payload.markdown
-    };
+    if(!isRid(req.params.id))
+      return reply(Boom.notFound('Invalid chapter ID'));
 
-    Joi.validateAsync(doc, chapterSchema)
-      .then(chapters.get.bind(null, username, doc.id))
-      .then(chapters.save.bind(null, username, doc))
-      .then(function () {
-        reply(null, { id: doc.id });
+    Joi
+      .validateAsync(req.payload, patchChapterSchema)
+      .then(chapters.patch.bind(null, username, req.params.id, req.payload))
+      .then(function (record) {
+        reply(null, { id: record.id });
       })
       .catch(function (e) {
-        if(e.error === 'not_found')
+        if(e.name === 'ValidationError')
+          return reply(Boom.badRequest(e));
+
+        if(e.message === 'Cannot update record -  record ID is not specified or invalid.')
           return reply(Boom.notFound(e));
 
         debug(e);
@@ -113,35 +124,37 @@ module.exports = function (cfg) {
       });
   };
 
-  controller.get = function (req, reply) {
-    const id       = [req.params.id, encodeURIComponent(req.params.section), encodeURIComponent(req.params.chapter)].join('!');
+  controller.list = function (req, reply) {
     const username = req.auth.credentials ? req.auth.credentials.name : null;
 
-    // Parse markdown by default
-    // XXX This is some bullshit code right here bro
-    let parse = true;
-
-    switch (req.query.parse) {
-      case 'html':
-        parse = true;
-        break;
-      case 'false':
-        parse = false;
-        break;
-      default:
-        break;
-    }
-
     chapters
-      .get(username, id, parse)
-      .then(function (doc) {
-        doc.id = doc._id.split('!')[2];
-        delete doc._id;
-
-        reply(doc);
+      .list(username, req.query.title)
+      .then(function (list) {
+        reply(list)
+          .code(200);
       })
       .catch(function (e) {
-        if(e.error === 'not_found')
+        debug('Could not list chapters: ', e);
+
+        reply(Boom.wrap(e));
+      });
+  }
+
+  controller.get = function (req, reply) {
+    const username = req.auth.credentials ? req.auth.credentials.name : null;
+    const parse = req.query.parse ? (req.query.parse === '1' ? true : false) : true;
+
+    if(!isRid(req.params.id))
+      return reply(Boom.notFound('Invalid chapter ID'));
+
+    chapters
+      .get(username, req.params.id, parse)
+      .then(function (doc) {
+        reply(doc)
+          .code(200);
+      })
+      .catch(function (e) {
+        if(e.message === 'Cannot update record -  record ID is not specified or invalid.')
           return reply(Boom.notFound(e));
 
         debug(e);
@@ -151,17 +164,39 @@ module.exports = function (cfg) {
 
   controller.destroy = function (req, reply) {
     const username = req.auth.credentials.name;
-    const id       = [req.params.id, encodeURIComponent(req.params.section), encodeURIComponent(req.params.chapter)].join('!');
 
-    chapters.destroy(username, id)
+    if(!isRid(req.params.id))
+      return reply(Boom.notFound('Invalid chapter ID'));
+
+    chapters
+      .destroy(username, req.params.id)
+      .then(function (id) {
+        reply(id)
+          .code(200)
+      })
+      .catch(function (e) {
+        if(e.message === 'Cannot update record -  record ID is not specified or invalid.')
+          return reply(Boom.notFound(e));
+
+        debug(e);
+        reply(Boom.wrap(e));
+      });
+  };
+
+  controller.createLead = function (req, reply) {
+    const username = req.auth.credentials.name;
+
+    if(!isRid(req.params.id) || !isRid(req.params.id2))
+      return reply(Boom.notFound('Invalid chapter ID'));
+
+    chapters
+      .link(username, req.params.id, req.params.id2)
       .then(function () {
         reply();
       })
       .catch(function (e) {
-        if(e.error === 'not_found')
-          return reply(Boom.notFound(e));
+        debug('Could not link %s to %s:', req.params.id, req.params.id2, e);
 
-        debug(e);
         reply(Boom.wrap(e));
       });
   };

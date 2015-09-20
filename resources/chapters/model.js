@@ -3,139 +3,152 @@
 const debug          = require('debug')('chapters');
 const Bluebird       = require('bluebird');
 const marked         = Bluebird.promisify(require('marked'));
-const assign         = require('object-assign');
 const Boom           = require('boom');
 const getPermissions = require('../../lib/permissions').figure;
+const processId      = require('../../lib/processId');
 
 module.exports = function (cfg) {
-  const db = cfg.storiesdb;
+  const db = cfg.chaptersdb;
 
   let model = {};
 
-  model.save = function (username, body) {
-    const sections = require('../sections/model')(cfg);
-
-    debug('saving chapter: %s', body.title);
-
-    const doc = {
-      _id:      body.id,
-      type:     'chapter',
-      title:    body.title || '',
-      read:     body.read  || [username],
-      write:    body.write || [username],
-      author:   body.author,
-      markdown: body.markdown
-    };
-
-    /* eslint-disable camelcase */
-
+  // Currently this only supports using the internal couchdb users,
+  // probably should not expose that functionality so watch this space etc
+  // but the abstraction is there.
+  function getIdentity(username) {
     return db
-      .getAsync(doc._id, { revs_info: true })
-      .spread(function (saved) {
-        const updated = assign(saved, doc);
+      .select()
+      .from('Identity')
+      .where({ couchId: 'org.couchdb.user:' + username})
+      .one();
+  }
 
-        if(!getPermissions(saved, username).write)
-          throw Boom.unauthorized();
+  model.save = function (username, doc) {
+    debug('saving chapter: %s', doc.title);
 
-        return db.insertAsync(updated);
+    function mapper(name) {
+      return getIdentity(name)
+        .get('@rid');
+    }
+
+    doc.read  = Bluebird.map(doc.read, mapper);
+    doc.write = Bluebird.map(doc.write, mapper);
+    doc.owner = mapper(username);
+
+    return doc.read
+      .tap(function (read) {
+        doc.read = read;
       })
-      .catch(function (e) {
-        if(e.error === 'not_found')
-          return db
-            .insertAsync(doc)
-            .then(function () {
-              return sections
-                .addChapter(username, doc._id)
-                .return(doc);
-            });
 
-        debug('well humdinger');
+      .return(doc.write)
+      .tap(function (write) {
+        doc.write = write;
+      })
 
-        throw e;
-      });
+      .return(doc.owner)
+      .tap(function (owner) {
+        doc.owner = owner;
+      })
 
-      /* eslint-enable camelcase */
+      .return(db.class.get('Chapter'))
+      .call('create', doc)
+      .then(processId);
+  };
+
+  model.addAuthor = function (username, name) {
+    debug('%s adding new author %s', username, name);
+
+    let doc = Object.create(null);
+
+    doc.title       = name;
+    doc.author      = username;
+    doc.description = 'bio';
+    doc.owner       = getIdentity(username);
+
+    return doc
+      .owner
+      .then(function (ownerRid) {
+        doc.owner = ownerRid;
+      })
+      .return(db.class.get('Author'))
+      .call('create', doc);
   };
 
   model.get = function (username, id, parse) {
     debug('getting chapter: %s', id);
 
     return db
-      .getAsync(id)
-      .spread(function (doc) {
-        if(!getPermissions(doc, username).read)
-          throw new Error('Unauthorized');
+      .select()
+      .from('#' + id)
 
+      // Fetch one level deep
+      .fetch('*:1')
+
+      // We fetched by rid so there can only be one
+      .one()
+
+      .then(function (record) {
         if(parse)
-          return marked(doc.markdown)
+          return marked(record.markdown)
             .then(function (html) {
-              doc.html = html;
+              record.html = html;
 
-              return doc;
+              return processId(record);
             });
 
-        return doc;
+        return processId(record);
       });
+  };
+
+  model.patch = function (username, id, diff) {
+    debug('updating chapter: %s', id);
+
+    return db
+      .update('#' + id)
+      .set(diff)
+      .one();
   };
 
   model.destroy = function (username, id) {
     debug('removing chapter: %s', id);
 
-    /* eslint-disable camelcase */
+    return model
+      .get(username, id, false)
+      .then(function (doc) {
+        if(getPermissions(doc, username).write)
+          return db
+            .record
+            .delete('#' + id);
 
-    return db
-      .getAsync(id, { revs_info: true })
-      .spread(function (doc) {
-        if(!getPermissions(doc, username).write)
-          throw new Error('Unauthorized');
-
-        return db
-          .destroyAsync(id, doc._rev);
+        throw Boom.unauthorized();
       });
-
-      /* eslint-enable camelcase */
   };
 
   model.list = function (username, title) {
-
-    if(title)
       return db
-        .viewAsync('chapter', 'byTitle', { key: title })
-        .spread(function (body) {
-          return body.rows;
+        .class
+        .get('Chapter')
+        .call('list')
+        .filter(function (li) {
+          return title ? (new RegExp(title)).test(li.title) : true;
         })
-        .filter(function (value) {
-          return getPermissions(value.value, username).read;
-        })
-        .map(function (value) {
+        .map(function (li) {
           return {
-            id:     value.id,
-            title:  value.value.title,
-            author: value.value.author
-          };
+            id:          li['@rid'],
+            title:       li.title,
+            author:      li.author,
+            description: li.description
+          }
         });
-    else
-      // Just list them all
-      /* eslint-disable camelcase */
-      return db
-        .listAsync({ include_docs: true })
-        .spread(function (body) {
-          return body.rows;
-        })
-        .filter(function (value) {
-          return (value.id.match(/^_design+/) && getPermissions(value.doc, username).read);
-        })
-        .map(function (value) {
-          return {
-            id:     value.id,
-            title:  value.value.title,
-            author: value.value.author
-          };
-        });
+  };
 
-      /* eslint-enable camelcase */
+  model.link = function (username, from, to) {
+    return db
+      .create('EDGE', 'Leads')
+      .from('#' + from)
+      .to('#' + to)
+      .one();
   };
 
   return model;
-
 };
