@@ -1,27 +1,19 @@
 'use strict';
 
-const debug          = require('debug')('chapters');
-const Bluebird       = require('bluebird');
-const marked         = Bluebird.promisify(require('marked'));
-const Boom           = require('boom');
-const getPermissions = require('../../lib/permissions').figure;
-const processId      = require('../../lib/processId');
+const debug       = require('debug')('chapters');
+const Bluebird    = require('bluebird');
+const marked      = Bluebird.promisify(require('marked'));
+const Boom        = require('boom');
+const permissions = require('../../lib/permissions');
+const processId   = require('../../lib/processId');
 
 module.exports = function (cfg) {
+  const getPermissions = permissions(cfg).figure;
+  const getIdentity    = permissions(cfg).getIdentity;
+
   const db = cfg.chaptersdb;
 
   let model = {};
-
-  // Currently this only supports using the internal couchdb users,
-  // probably should not expose that functionality so watch this space etc
-  // but the abstraction is there.
-  function getIdentity(username) {
-    return db
-      .select()
-      .from('Identity')
-      .where({ couchId: 'org.couchdb.user:' + username})
-      .one();
-  }
 
   model.save = function (username, doc) {
     debug('saving chapter: %s', doc.title);
@@ -55,23 +47,45 @@ module.exports = function (cfg) {
       .then(processId);
   };
 
-  model.addAuthor = function (username, name) {
-    debug('%s adding new author %s', username, name);
+  model.addPersona = function (username, name, persona) {
+    debug('%s adding new persona %s written by %s', username, name, (persona || username));
 
     let doc = Object.create(null);
 
     doc.title       = name;
-    doc.author      = username;
+    doc.author      = persona ? model.getPersona(persona) : getIdentity(username);
     doc.description = 'bio';
     doc.owner       = getIdentity(username);
 
-    return doc
-      .owner
-      .then(function (ownerRid) {
-        doc.owner = ownerRid;
+    return Bluebird
+      .all([doc.author, doc.owner])
+      .map(function (thing) {
+        if(thing)
+          return thing['@rid'];
       })
-      .return(db.class.get('Author'))
+      .spread(function (authorRID, ownerRID) {
+        doc.author = authorRID;
+        doc.owner  = ownerRID;
+      })
+      .return(db.class.get('Persona'))
       .call('create', doc);
+  };
+
+  model.getPersona = function (username, name, owner) {
+    if(!owner)
+      owner = username;
+
+    const RIDToList = getIdentity(owner);
+
+    return RIDToList
+      .then(function (RID) {
+        return db
+          .select()
+          .from('Persona')
+          .fetch('*:1')
+          .where({ title: name, owner: RID })
+          .one();
+      });
   };
 
   model.get = function (username, id, parse) {
@@ -103,10 +117,17 @@ module.exports = function (cfg) {
   model.patch = function (username, id, diff) {
     debug('updating chapter: %s', id);
 
-    return db
-      .update('#' + id)
-      .set(diff)
-      .one();
+    return model
+      .get(username, id, false)
+      .then(function (doc) {
+        if(getPermissions(doc, username).write)
+          return db
+            .update('#' + id)
+            .set(diff)
+            .one();
+
+        throw Boom.unauthorized();
+      });
   };
 
   model.destroy = function (username, id) {
@@ -141,6 +162,41 @@ module.exports = function (cfg) {
           }
         });
   };
+
+  model.listPersonas = function (username, name) {
+    return db
+      .class
+      .get('Persona')
+      .call('list')
+      .filter(function (li) {
+        return name ? (new RegExp(name)).test(li.title) : true;
+      })
+      .map(function (li) {
+        return processId(li);
+      });
+  }
+
+  // TODO A story is defined as a top-level Chapter which is not a Persona 
+  // ie direct descendents of authors
+  model.listStories = function (username, title) {
+    return db
+      .select()
+      .from('Persona')
+      .fetch('out():1')
+      .all()
+      .map(function (doc) {
+        console.log(doc)
+        return doc;
+      })
+      .filter(function (li) {
+        return (title ? (new RegExp(title)).test(li.title) : true)
+      });
+
+    return db
+      .class
+      .get('Persona')
+      .call('list')
+  }
 
   model.link = function (username, from, to) {
     return db

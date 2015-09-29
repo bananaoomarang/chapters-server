@@ -41,6 +41,7 @@ module.exports = function (cfg) {
   // Receive JSON payload from our editor
   controller.post = function (req, reply) {
     const username = req.auth.credentials.name;
+    const from     = req.params ? req.params.id : false;
 
     const doc = {
       read:        req.payload.read        || [username],
@@ -48,13 +49,39 @@ module.exports = function (cfg) {
       owner:       username,
 
       title:       req.payload.title,
-      author:      req.payload.author      || username,
-      markdown:    req.payload.markdown
+      author:      req.payload.author,
+      markdown:    req.payload.markdown,
+      ordered:     req.payload.ordered     || false // Don't know what this should default to, either seems good.
     };
 
     Joi
       .validateAsync(doc, chapterSchema)
+      .then(function () {
+        return chapters
+          .getPersona(username, doc.author)
+          .then(function (persona) {
+            if(!persona) {
+              debug('No persona exists for this author, creating %s', doc.author);
+
+              return chapters
+                .addPersona(username, doc.author)
+            }
+
+            return persona;
+          });
+      })
+      .tap(function (record) {
+        doc.author = record['@rid'];
+      })
       .then(chapters.save.bind(null, username, doc))
+      .tap(function (record) {
+        // POST /chapters/{id} links to id as the parent
+        if(from)
+          return chapters.link(username, from, record.id)
+
+        // POST /chapters links to the persona
+        return chapters.link(username, [doc.author.cluster, doc.author.position].join(':'), record.id);
+      })
       .then(function (result) {
         reply(null, { id: result.id })
           .code(201);
@@ -71,21 +98,27 @@ module.exports = function (cfg) {
 
   // Multipart file upload
   controller.put = function (req, reply) {
-    const username    = req.auth.credentials.name;
+    const username = req.auth.credentials.name;
+    const from     = req.params ? req.params.id : false;
 
     const doc = {
-      read:     req.payload.read   || [username],
-      write:    req.payload.write  || [username],
+      read:     req.payload.read    || [username],
+      write:    req.payload.write   || [username],
       owner:    username,
 
       title:    trimExtension(req.payload.file.hapi.filename),
-      author:   req.payload.author || username,
-      markdown: ''
+      author:   req.payload.author  || username,
+      markdown: '',
+      ordered:  req.payload.ordered || false
     };
 
     parseMdStream(req.payload.file, doc)
-      .then(Joi.validateAsync.bind(Joi, doc, chapterSchema))
+      .then(Joi.validateAsync.bind(null, doc, chapterSchema))
       .then(chapters.save.bind(null, username, doc))
+      .tap(function (record) {
+        if(from)
+          return chapters.link(username, from, record.id)
+      })
       .then(function (record) {
         reply(null, { id: record.id } )
           .code(201);
@@ -113,13 +146,14 @@ module.exports = function (cfg) {
         reply(null, { id: record.id });
       })
       .catch(function (e) {
+        debug(e);
+
         if(e.name === 'ValidationError')
           return reply(Boom.badRequest(e));
 
         if(e.message === 'Cannot update record -  record ID is not specified or invalid.')
           return reply(Boom.notFound(e));
 
-        debug(e);
         return reply(Boom.wrap(e));
       });
   };
@@ -135,6 +169,22 @@ module.exports = function (cfg) {
       })
       .catch(function (e) {
         debug('Could not list chapters: ', e);
+
+        reply(Boom.wrap(e));
+      });
+  }
+
+  controller.listStories = function (req, reply) {
+    const username = req.auth.credentials ? req.auth.credentials.name : null;
+
+    chapters
+      .listStories(username, req.query.title)
+      .then(function (list) {
+        reply(list)
+          .code(200);
+      })
+      .catch(function (e) {
+        debug('Could not list stories: ', e);
 
         reply(Boom.wrap(e));
       });
@@ -199,6 +249,11 @@ module.exports = function (cfg) {
 
         reply(Boom.wrap(e));
       });
+  };
+
+  controller.destroyLead = function (req, reply) {
+    reply('TODO')
+      .code(501);
   };
 
   return controller;

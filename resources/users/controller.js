@@ -120,12 +120,28 @@ module.exports = function (cfg) {
       });
   };
 
-  controller.getCurrentUserChapters = function (req, reply) {
+  controller.getUserStories = function (req, reply) {
     const username   = req.auth.credentials ? req.auth.credentials.name : '';
-    const userToList = username;
+    const userToList = req.params.user;
 
     users
       .getStories(username, userToList)
+      .then(function (list) {
+        reply(list);
+      })
+      .catch(function (e) {
+        debug(e);
+
+        reply(Boom.wrap(e));
+      });
+  };
+
+  controller.getUserPersonas = function (req, reply) {
+    const username   = req.auth.credentials ? req.auth.credentials.name : '';
+    const userToList = req.params.user;
+
+    users
+      .getPersonas(username, userToList)
       .then(function (list) {
         reply(list);
       })

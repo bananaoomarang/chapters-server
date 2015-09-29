@@ -18,14 +18,14 @@ function initDatabases() {
       console.log('Added vertex class \'Chapter\'');
     })
 
-    .return(chaptersdb.class.create('Author', 'Chapter'))
+    .return(chaptersdb.class.create('Persona', 'Chapter'))
     .tap(function () {
-      console.log('Added vertex class \'Author\'');
+      console.log('Added vertex class \'Persona\'');
     })
 
     .return(chaptersdb.class.create('Identity', 'V'))
     .tap(function () {
-      console.log('Added vertex class \'Author\'');
+      console.log('Added vertex class \'Identity\'');
     })
 
     .return(chaptersdb.class.create('Leads', 'E'))
@@ -56,16 +56,20 @@ function createClassProps() {
         type: 'string'
       },
       {
-        name: 'author',
-        type: 'string'
-      },
-      {
         name: 'description',
         type: 'string'
       },
       {
         name: 'markdown',
         type: 'string'
+      },
+      {
+        name: 'ordered',
+        type: 'boolean'
+      },
+      {
+        name: 'author',
+        type: 'link'
       },
       {
         name: 'owner',

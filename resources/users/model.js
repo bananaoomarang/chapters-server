@@ -1,12 +1,14 @@
 'use strict';
 
-const debug = require('debug')('users');
-const Boom  = require('boom');
+const debug       = require('debug')('users');
+const Boom        = require('boom');
+const permissions = require('../../lib/permissions');
 
 Object.assign = require('object-assign');
 
 module.exports = function (cfg) {
   const authenticate = require('../../lib/authentication')(cfg);
+  const getIdentity  = permissions(cfg).getIdentity;
 
   const db         = cfg.usersdb;
   const chaptersdb = cfg.chaptersdb
@@ -31,8 +33,8 @@ module.exports = function (cfg) {
       .get('Identity')
       .call('create', { couchId: doc._id })
 
-   // Save user to couch
-      .return(db.insertAsync(doc));
+       // Save user to couch
+      .return(db.insertAsync(doc))
   };
 
   model.update = function (username, toUpdate, delta) {
@@ -85,20 +87,53 @@ module.exports = function (cfg) {
   };
 
   model.getStories = function (username, userToList) {
-    const chapters = require('../chapters/model')(cfg);
-
     debug('%s getting chapters for %s', username, userToList);
 
-    // XXX This should be O(1), interface with db directly
-    return chapters
-      .list(username, userToList)
-      .map(function (doc) {
-        debug(doc);
-        return {
-          id:    doc.id,
-          title: doc.title
-        };
-      });
+    const RIDToList = getIdentity(userToList);
+
+    return RIDToList
+      .then(function (RID) {
+        return chaptersdb
+          .select('expand(out(in))')
+          .from('Persona')
+          .where({
+            owner: RID
+          })
+          .fetch('*:1')
+          .all()
+          .map(function (doc) {
+            return {
+              id:          doc.id,
+              title:       doc.title,
+              description: doc.description
+            };
+          });
+      })
+  };
+
+  model.getPersonas = function (username, userToList) {
+    debug('%s getting chapters for %s', username, userToList);
+
+    const RIDToList = getIdentity(userToList);
+
+    return RIDToList
+      .then(function (RID) {
+        return chaptersdb
+          .select()
+          .from('Persona')
+          .where({
+            owner: RID
+          })
+          .fetch('*:1')
+          .all()
+          .map(function (doc) {
+            return {
+              id:          doc.id,
+              title:       doc.title,
+              description: doc.description
+            };
+          });
+      })
   };
 
   model.list = function () {
