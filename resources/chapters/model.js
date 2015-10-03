@@ -106,16 +106,19 @@ module.exports = function (cfg) {
       .then(processId)
   };
 
-  model.getPersona = function (username, name) {
-        return db
-          .select('expand(in)')
-          .from('Persona')
-          .where({ title: name })
-          .all()
-          .all(function (result) {
-            if(result['@rid'])
-              return processId(result);
-          });
+  model.getPersona = function (username, name, owner) {
+    if(!owner)
+      owner = username;
+
+    return db
+      .select()
+      .from('Persona')
+      .where('\'org.couchdb.user:' + owner + '\' IN in(\'Owns\').couchId AND title=:title', { title: name })
+      .one()
+      .then(function (result) {
+        if(result && result['@rid'])
+          return processId(result);
+      });
   };
 
   model.get = function (username, id, parse) {
