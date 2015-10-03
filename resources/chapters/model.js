@@ -15,7 +15,15 @@ module.exports = function (cfg) {
 
   let model = {};
 
-  model.save = function (username, doc) {
+  function setOwns(parent, child) {
+    return db
+      .create('EDGE', 'Owns')
+      .from(parent)
+      .to(child)
+      .one();
+  }
+
+  model.save = function (username, author, doc) {
     debug('saving chapter: %s', doc.title);
 
     function mapper(name) {
@@ -23,28 +31,56 @@ module.exports = function (cfg) {
         .get('@rid');
     }
 
+    const owner = mapper(username);
+
     doc.read  = Bluebird.map(doc.read, mapper);
     doc.write = Bluebird.map(doc.write, mapper);
-    doc.owner = mapper(username);
 
     return doc.read
-      .tap(function (read) {
-        doc.read = read;
+      .tap(function (readRID) {
+        doc.read = readRID;
       })
 
       .return(doc.write)
-      .tap(function (write) {
-        doc.write = write;
-      })
-
-      .return(doc.owner)
-      .tap(function (owner) {
-        doc.owner = owner;
+      .tap(function (writeRID) {
+        doc.write = writeRID;
       })
 
       .return(db.class.get('Chapter'))
       .call('create', doc)
-      .then(processId);
+      .then(processId)
+
+      //
+      // Set ownership
+      //
+      .tap(function (chapter) {
+        return owner
+          .then(function (ownerRID) {
+            return setOwns(ownerRID, chapter.id);
+          });
+      })
+      .tap(function (chapter) {
+        //
+        // Create Persona if need be
+        //
+
+        return model
+          .getPersona(username, author)
+          .then(function (persona) {
+            if(!persona) {
+              debug('No persona exists for this author, creating %s', author);
+
+              return model
+                .addPersona(username, author)
+            }
+
+            return persona;
+          })
+          .then(function (persona) {
+            console.log(persona);
+            return model.link(username, persona.id, chapter.id);
+          });
+      });
   };
 
   model.addPersona = function (username, name, persona) {
@@ -53,39 +89,33 @@ module.exports = function (cfg) {
     let doc = Object.create(null);
 
     doc.title       = name;
-    doc.author      = persona ? model.getPersona(persona) : getIdentity(username);
     doc.description = 'bio';
-    doc.owner       = getIdentity(username);
 
-    return Bluebird
-      .all([doc.author, doc.owner])
-      .map(function (thing) {
-        if(thing)
-          return thing['@rid'];
+    return db
+      .class
+      .get('Persona')
+      .call('create', doc)
+      
+      .tap(function (newPersona) {
+        return getIdentity(username)
+          .then(function (identity) {
+            return setOwns(identity['@rid'], newPersona['@rid'])
+          });
       })
-      .spread(function (authorRID, ownerRID) {
-        doc.author = authorRID;
-        doc.owner  = ownerRID;
-      })
-      .return(db.class.get('Persona'))
-      .call('create', doc);
+
+      .then(processId)
   };
 
-  model.getPersona = function (username, name, owner) {
-    if(!owner)
-      owner = username;
-
-    const RIDToList = getIdentity(owner);
-
-    return RIDToList
-      .then(function (RID) {
+  model.getPersona = function (username, name) {
         return db
-          .select()
+          .select('expand(in)')
           .from('Persona')
-          .fetch('*:1')
-          .where({ title: name, owner: RID })
-          .one();
-      });
+          .where({ title: name })
+          .all()
+          .all(function (result) {
+            if(result['@rid'])
+              return processId(result);
+          });
   };
 
   model.get = function (username, id, parse) {
@@ -199,6 +229,8 @@ module.exports = function (cfg) {
   }
 
   model.link = function (username, from, to) {
+    debug('%s linking %s to %s', username, from, to);
+
     return db
       .create('EDGE', 'Leads')
       .from('#' + from)

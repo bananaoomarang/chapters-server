@@ -38,6 +38,11 @@ function initDatabases() {
       console.log('Added edge class \'Wrote\'');
     })
 
+    .return(chaptersdb.class.create('Owns', 'E'))
+    .tap(function () {
+      console.log('Added edge class \'Owns\'');
+    })
+
     .catch(function (e) {
       console.error(e);
     });
@@ -66,14 +71,6 @@ function createClassProps() {
       {
         name: 'ordered',
         type: 'boolean'
-      },
-      {
-        name: 'author',
-        type: 'link'
-      },
-      {
-        name: 'owner',
-        type: 'link'
       },
       {
         name: 'read',

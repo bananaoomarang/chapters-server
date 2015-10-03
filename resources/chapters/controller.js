@@ -42,45 +42,27 @@ module.exports = function (cfg) {
   controller.post = function (req, reply) {
     const username = req.auth.credentials.name;
     const from     = req.params ? req.params.id : false;
+    const author   = req.payload.author;
+
+    if(!author)
+      return reply(Boom.badRequest('Must supply \'author\' field'))
 
     const doc = {
       read:        req.payload.read        || [username],
       write:       req.payload.write       || [username],
-      owner:       username,
 
       title:       req.payload.title,
-      author:      req.payload.author,
       markdown:    req.payload.markdown,
       ordered:     req.payload.ordered     || false // Don't know what this should default to, either seems good.
     };
 
     Joi
       .validateAsync(doc, chapterSchema)
-      .then(function () {
-        return chapters
-          .getPersona(username, doc.author)
-          .then(function (persona) {
-            if(!persona) {
-              debug('No persona exists for this author, creating %s', doc.author);
-
-              return chapters
-                .addPersona(username, doc.author)
-            }
-
-            return persona;
-          });
-      })
-      .tap(function (record) {
-        doc.author = record['@rid'];
-      })
-      .then(chapters.save.bind(null, username, doc))
+      .then(chapters.save.bind(null, username, author, doc))
       .tap(function (record) {
         // POST /chapters/{id} links to id as the parent
         if(from)
           return chapters.link(username, from, record.id)
-
-        // POST /chapters links to the persona
-        return chapters.link(username, [doc.author.cluster, doc.author.position].join(':'), record.id);
       })
       .then(function (result) {
         reply(null, { id: result.id })

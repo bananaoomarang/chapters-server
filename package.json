@@ -24,24 +24,24 @@
   "devDependencies": {
     "code": "^1.5.0",
     "debug": "^2.2.0",
-    "eslint": "^1.4.3",
-    "lab": "^5.16.2",
+    "eslint": "^1.5.1",
+    "lab": "^6.1.0",
     "pre-commit": "^1.1.1",
     "supertest": "^1.1.0"
   },
   "dependencies": {
     "async": "^1.4.2",
-    "bluebird": "^2.10.0",
-    "boom": "^2.8.0",
-    "good": "^6.3.0",
-    "good-console": "^5.0.3",
-    "hapi": "^10.0.0",
+    "bluebird": "^2.10.1",
+    "boom": "^2.9.0",
+    "good": "^6.4.0",
+    "good-console": "^5.1.0",
+    "hapi": "^10.1.0",
     "hapi-auth-jwt": "^3.0.0",
-    "joi": "^6.7.0",
+    "joi": "^6.7.1",
     "jsonwebtoken": "^5.0.5",
     "marked": "^0.3.5",
     "nano": "^6.1.5",
     "object-assign": "^4.0.1",
-    "orientjs": "^2.0.0"
+    "orientjs": "^2.1.0"
   }
 }

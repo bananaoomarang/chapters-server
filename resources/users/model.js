@@ -2,13 +2,11 @@
 
 const debug       = require('debug')('users');
 const Boom        = require('boom');
-const permissions = require('../../lib/permissions');
 
 Object.assign = require('object-assign');
 
 module.exports = function (cfg) {
   const authenticate = require('../../lib/authentication')(cfg);
-  const getIdentity  = permissions(cfg).getIdentity;
 
   const db         = cfg.usersdb;
   const chaptersdb = cfg.chaptersdb
@@ -86,54 +84,42 @@ module.exports = function (cfg) {
     return db.getAsync(id);
   };
 
+  // TODO these should both be compatable with Personas also. It's turtles.
   model.getStories = function (username, userToList) {
     debug('%s getting chapters for %s', username, userToList);
 
-    const RIDToList = getIdentity(userToList);
+    return chaptersdb
+      .select()
+      .from('Chapter')
 
-    return RIDToList
-      .then(function (RID) {
-        return chaptersdb
-          .select('expand(out(in))')
-          .from('Persona')
-          .where({
-            owner: RID
-          })
-          .fetch('*:1')
-          .all()
-          .map(function (doc) {
-            return {
-              id:          doc.id,
-              title:       doc.title,
-              description: doc.description
-            };
-          });
-      })
+      // XXX The AND @class here is a hack. Possibly makes more semantic sense to .filter?
+      .where('\'org.couchdb.user:' + userToList + '\' IN in(\'Owns\').couchId AND @class=\'Chapter\'')
+
+      .all()
+      .map(function (doc) {
+        return {
+          id:          doc.id,
+          title:       doc.title,
+          description: doc.description
+        };
+      });
   };
 
   model.getPersonas = function (username, userToList) {
     debug('%s getting chapters for %s', username, userToList);
 
-    const RIDToList = getIdentity(userToList);
-
-    return RIDToList
-      .then(function (RID) {
-        return chaptersdb
-          .select()
-          .from('Persona')
-          .where({
-            owner: RID
-          })
-          .fetch('*:1')
-          .all()
-          .map(function (doc) {
-            return {
-              id:          doc.id,
-              title:       doc.title,
-              description: doc.description
-            };
-          });
-      })
+    return chaptersdb
+      .select()
+      .from('Persona')
+      .where('\'org.couchdb.user:' + userToList + '\' IN in(\'Owns\').couchId')
+      .all()
+      .map(function (doc) {
+        return {
+          id:          doc.id,
+          title:       doc.title,
+          description: doc.description
+        };
+      });
   };
 
   model.list = function () {
