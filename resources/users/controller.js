@@ -22,7 +22,7 @@ module.exports = function (cfg) {
 
     Joi.validateAsync(doc, userSchema)
       .then(users.add.bind(null, doc))
-      .spread(function (result) {
+      .then(function (result) {
         reply({ id: result.id })
           .code(201);
       })
@@ -157,7 +157,7 @@ module.exports = function (cfg) {
 
     users
       .destroy(userToDestroy)
-      .spread(function (body) {
+      .then(function (body) {
         reply(body);
       })
       .catch(function (e) {

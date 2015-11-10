@@ -7,6 +7,24 @@ const Boom        = require('boom');
 const permissions = require('../../lib/permissions');
 const processId   = require('../../lib/processId');
 
+function pruneRecord (record) {
+  const testJex = /^(in_|out_|@)/;
+
+  Object
+    .keys(record)
+    .forEach(function (key) {
+      if(testJex.test(key))
+        delete record[key];
+
+
+      if(record[key] instanceof Array)
+        return record[key].forEach(pruneRecord);
+
+      if(typeof record[key] === 'object')
+        return pruneRecord(record[key]);
+    });
+}
+
 module.exports = function (cfg) {
   const getPermissions = permissions(cfg).figure;
   const getIdentity    = permissions(cfg).getIdentity;
@@ -77,8 +95,11 @@ module.exports = function (cfg) {
             return persona;
           })
           .then(function (persona) {
-            console.log(persona);
-            return model.link(username, persona.id, chapter.id);
+            return db
+              .create('EDGE', 'Wrote')
+              .from('#' + persona.id)
+              .to('#' + chapter.id)
+              .one();
           });
       });
   };
@@ -144,7 +165,21 @@ module.exports = function (cfg) {
             });
 
         return processId(record);
-      });
+      })
+      .then(function (record) {
+
+        pruneRecord(record);
+
+        return {
+          id:          record.id,
+          title:       record.title,
+          description: record.description,
+          markdown:    record.markdown,
+          html:        record.html,
+          read:        record.read,
+          write:       record.write
+        }
+      })
   };
 
   model.patch = function (username, id, diff) {
@@ -187,12 +222,7 @@ module.exports = function (cfg) {
           return title ? (new RegExp(title)).test(li.title) : true;
         })
         .map(function (li) {
-          return {
-            id:          li['@rid'],
-            title:       li.title,
-            author:      li.author,
-            description: li.description
-          }
+          return processId(li);
         });
   };
 
@@ -217,18 +247,12 @@ module.exports = function (cfg) {
       .from('Persona')
       .fetch('out():1')
       .all()
-      .map(function (doc) {
-        console.log(doc)
-        return doc;
-      })
       .filter(function (li) {
         return (title ? (new RegExp(title)).test(li.title) : true)
+      })
+      .map(function (doc) {
+        return processId(doc);
       });
-
-    return db
-      .class
-      .get('Persona')
-      .call('list')
   }
 
   model.link = function (username, from, to) {

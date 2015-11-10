@@ -1,7 +1,8 @@
 'use strict';
 
-const debug       = require('debug')('users');
-const Boom        = require('boom');
+const debug     = require('debug')('users');
+const Boom      = require('boom');
+const processId = require('../../lib/processId')
 
 Object.assign = require('object-assign');
 
@@ -32,7 +33,7 @@ module.exports = function (cfg) {
       .call('create', { couchId: doc._id })
 
        // Save user to couch
-      .return(db.insertAsync(doc))
+      .return(db.insertAsync(doc));
   };
 
   model.update = function (username, toUpdate, delta) {
@@ -41,7 +42,7 @@ module.exports = function (cfg) {
     /* eslint-disable camelcase */
     return db
       .getAsync('org.couchdb.user:' + toUpdate, { revs_info: true })
-      .spread(function (saved) {
+      .then(function (saved) {
         if(username !== saved.name)
           throw Boom.unauthorized();
 
@@ -66,7 +67,7 @@ module.exports = function (cfg) {
     /* eslint-disable camelcase */
     return db
       .getAsync(id, { revs_info: true })
-      .spread(function (doc) {
+      .then(function (doc) {
         if(username !== doc.name)
           throw Boom.unauthorized();
 
@@ -97,6 +98,7 @@ module.exports = function (cfg) {
 
       .all()
       .map(function (doc) {
+        return processId(doc);
         return {
           id:          doc.id,
           title:       doc.title,
@@ -114,6 +116,7 @@ module.exports = function (cfg) {
       .where('\'org.couchdb.user:' + userToList + '\' IN in(\'Owns\').couchId')
       .all()
       .map(function (doc) {
+        return processId(doc);
         return {
           id:          doc.id,
           title:       doc.title,
@@ -125,7 +128,7 @@ module.exports = function (cfg) {
   model.list = function () {
     return db
       .listAsync()
-      .spread(function (body) {
+      .then(function (body) {
         return body.rows;
       })
       .filter(function (val) {

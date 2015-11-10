@@ -18,7 +18,7 @@ var cfg = {
   usersdb:         Bluebird.promisifyAll(usersdb),
   chaptersdb:      chaptersdb,
   tokenSecret:     'QIrNlsLVNbaWbUILlGBdrwwLuiPah9IvYOFQcwcoh66sMOQ47v7jl44oxzd+a1shxVc+3MFlr+kjQs5O/zZvFDPDuGY04hFYUyJMgDcWYTb6ZycIV155OXSqdOvF5mN+hSh/02sMpVnZrWmlhEzwKeUyxaH0YNlEFhDnsv92l20=', // XXX Replace with secret for JWT validation
-  tokenExpiration: 60 // Token expiration timeout in minutes
+  tokenExpiration: '60m' // Token expiration timeout in minutes
 };
 
 var routes  = require('./lib/routes')(cfg);

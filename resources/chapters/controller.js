@@ -42,10 +42,7 @@ module.exports = function (cfg) {
   controller.post = function (req, reply) {
     const username = req.auth.credentials.name;
     const from     = req.params ? req.params.id : false;
-    const author   = req.payload.author;
-
-    if(!author)
-      return reply(Boom.badRequest('Must supply \'author\' field'))
+    const author   = req.payload.author || username;
 
     const doc = {
       read:        req.payload.read        || [username],
@@ -65,6 +62,7 @@ module.exports = function (cfg) {
           return chapters.link(username, from, record.id)
       })
       .then(function (result) {
+        console.log('afdjifjsodifjsiod');
         reply(null, { id: result.id })
           .code(201);
       })
@@ -72,7 +70,7 @@ module.exports = function (cfg) {
         debug(e);
 
         if(e.name === 'ValidationError')
-          return reply(Boom.badRequest());
+          return reply(Boom.badRequest(e.message));
 
         reply(Boom.wrap(e));
       });
@@ -86,10 +84,8 @@ module.exports = function (cfg) {
     const doc = {
       read:     req.payload.read    || [username],
       write:    req.payload.write   || [username],
-      owner:    username,
 
       title:    trimExtension(req.payload.file.hapi.filename),
-      author:   req.payload.author  || username,
       markdown: '',
       ordered:  req.payload.ordered || false
     };
@@ -186,10 +182,11 @@ module.exports = function (cfg) {
           .code(200);
       })
       .catch(function (e) {
+        debug(e);
+
         if(e.message === 'Cannot update record -  record ID is not specified or invalid.')
           return reply(Boom.notFound(e));
 
-        debug(e);
         return reply(Boom.wrap(e));
       });
   };

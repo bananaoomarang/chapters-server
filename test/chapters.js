@@ -103,6 +103,7 @@ lab.experiment('chapter', function () {
   lab.test('Create chapter from JSON (ie, exported from frontend editor)', function (done) {
     chapterFixture.title = 'Not the Old One';
 
+    console.log(chapterFixture);
     app
       .post('/chapters')
       .set('Authorization', 'Bearer ' + user.token)
@@ -110,7 +111,6 @@ lab.experiment('chapter', function () {
       .send(chapterFixture)
       .expect(201)
       .end(function (err, res) {
-
         if (err) return done(err);
 
         expect(res).to.be.ok;
