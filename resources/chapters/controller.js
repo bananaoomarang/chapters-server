@@ -62,7 +62,6 @@ module.exports = function (cfg) {
           return chapters.link(username, from, record.id)
       })
       .then(function (result) {
-        console.log('afdjifjsodifjsiod');
         reply(null, { id: result.id })
           .code(201);
       })
@@ -178,7 +177,7 @@ module.exports = function (cfg) {
     chapters
       .get(username, req.params.id, parse)
       .then(function (doc) {
-        reply(doc)
+        return reply(doc)
           .code(200);
       })
       .catch(function (e) {

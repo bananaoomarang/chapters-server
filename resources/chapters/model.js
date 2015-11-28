@@ -155,31 +155,40 @@ module.exports = function (cfg) {
       // We fetched by rid so there can only be one
       .one()
 
-      .then(function (record) {
+      .then(function (chapter) {
         if(parse)
-          return marked(record.markdown)
+          return marked(chapter.markdown)
             .then(function (html) {
-              record.html = html;
+              chapter.html = html;
 
-              return processId(record);
+              return processId(chapter);
             });
 
-        return processId(record);
+        return processId(chapter);
       })
-      .then(function (record) {
 
-        pruneRecord(record);
+      // Get the writer, can't get this to work more efficiently?
+      .then(function (chapter) {
+        pruneRecord(chapter);
 
-        return {
-          id:          record.id,
-          title:       record.title,
-          description: record.description,
-          markdown:    record.markdown,
-          html:        record.html,
-          read:        record.read,
-          write:       record.write
-        }
-      })
+        return db
+          .select("expand( in('Wrote') )")
+          .from('#' + id)
+          .one()
+
+          .then(function (writer) {
+            return {
+              id:          chapter.id,
+              title:       chapter.title,
+              author:      writer.title,
+              description: chapter.description,
+              markdown:    chapter.markdown,
+              html:        chapter.html,
+              read:        chapter.read,
+              write:       chapter.write
+            }
+          });
+      });
   };
 
   model.patch = function (username, id, diff) {
@@ -242,10 +251,11 @@ module.exports = function (cfg) {
   // TODO A story is defined as a top-level Chapter which is not a Persona 
   // ie direct descendents of authors
   model.listStories = function (username, title) {
+    debug('%s fetching stories', username || 'anonymous');
+
     return db
-      .select()
+      .select('expand(out(Wrote))')
       .from('Persona')
-      .fetch('out():1')
       .all()
       .filter(function (li) {
         return (title ? (new RegExp(title)).test(li.title) : true)
