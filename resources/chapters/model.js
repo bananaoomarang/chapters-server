@@ -186,6 +186,7 @@ module.exports = function (cfg) {
               description: chapter.description,
               markdown:    chapter.markdown,
               html:        chapter.html,
+              public:      chapter.public,
               read:        rw.read,
               write:       rw.write
             }
