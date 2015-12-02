@@ -177,6 +177,8 @@ module.exports = function (cfg) {
           .one()
 
           .then(function (writer) {
+            const rw = getPermissions(chapter, username);
+
             return {
               id:          chapter.id,
               title:       chapter.title,
@@ -184,8 +186,8 @@ module.exports = function (cfg) {
               description: chapter.description,
               markdown:    chapter.markdown,
               html:        chapter.html,
-              read:        getPermissions(chapter, username).read,
-              write:       getPermissions(chapter, username).write
+              read:        rw.read,
+              write:       rw.write
             }
           });
       });
@@ -197,13 +199,12 @@ module.exports = function (cfg) {
     return model
       .get(username, id, false)
       .then(function (doc) {
-        if(getPermissions(doc, username).write)
-          return db
-            .update('#' + id)
-            .set(diff)
-            .one();
+        if(!doc.write) throw Boom.unauthorized();
 
-        throw Boom.unauthorized();
+        return db
+          .update('#' + id)
+          .set(diff)
+          .one();
       });
   };
 
@@ -213,7 +214,7 @@ module.exports = function (cfg) {
     return model
       .get(username, id, false)
       .then(function (doc) {
-        if(getPermissions(doc, username).write)
+        if(doc.write)
           return db
             .record
             .delete('#' + id);
@@ -264,18 +265,22 @@ module.exports = function (cfg) {
           .from(chapter['@rid'])
           .one()
           .then(function (writer) {
-              chapter = processId(chapter);
+            const rw = getPermissions(chapter, username);
 
-              return {
-                  id:          chapter.id,
-                  title:       chapter.title,
-                  author:      writer.title,
-                  description: chapter.description,
-                  markdown:    chapter.markdown,
-                  html:        chapter.html,
-                  read:        chapter.read,
-                  write:       chapter.write
-              }
+            if(!rw.read) throw Boom.unauthorized();
+
+            chapter = processId(chapter);
+
+            return {
+              id:          chapter.id,
+              title:       chapter.title,
+              author:      writer.title,
+              description: chapter.description,
+              markdown:    chapter.markdown,
+              html:        chapter.html,
+              read:        rw.read,
+              write:       rw.write
+            }
           });
       });
   }

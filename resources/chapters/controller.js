@@ -180,7 +180,7 @@ module.exports = function (cfg) {
           return reply(doc)
             .code(200);
 
-        return reply(Boom.unauthorized());
+        return reply(Boom.unauthorized())
       })
       .catch(function (e) {
         debug(e);

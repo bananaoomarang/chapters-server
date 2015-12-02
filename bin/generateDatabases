@@ -73,6 +73,10 @@ function createClassProps() {
         type: 'boolean'
       },
       {
+        name: 'public',
+        type: 'boolean'
+      },
+      {
         name: 'read',
         type: 'linklist'
       },
