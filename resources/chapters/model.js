@@ -184,8 +184,8 @@ module.exports = function (cfg) {
               description: chapter.description,
               markdown:    chapter.markdown,
               html:        chapter.html,
-              read:        chapter.read,
-              write:       chapter.write
+              read:        getPermissions(chapter, username).read,
+              write:       getPermissions(chapter, username).write
             }
           });
       });
@@ -248,20 +248,35 @@ module.exports = function (cfg) {
       });
   }
 
-  // TODO A story is defined as a top-level Chapter which is not a Persona 
-  // ie direct descendents of authors
   model.listStories = function (username, title) {
     debug('%s fetching stories', username || 'anonymous');
 
     return db
-      .select('expand(out(Wrote))')
+      .select("expand( out('Wrote') )")
       .from('Persona')
       .all()
       .filter(function (li) {
         return (title ? (new RegExp(title)).test(li.title) : true)
       })
-      .map(function (doc) {
-        return processId(doc);
+      .map(function (chapter) {
+        return db
+          .select("expand( in('Wrote') )")
+          .from(chapter['@rid'])
+          .one()
+          .then(function (writer) {
+              chapter = processId(chapter);
+
+              return {
+                  id:          chapter.id,
+                  title:       chapter.title,
+                  author:      writer.title,
+                  description: chapter.description,
+                  markdown:    chapter.markdown,
+                  html:        chapter.html,
+                  read:        chapter.read,
+                  write:       chapter.write
+              }
+          });
       });
   }
 

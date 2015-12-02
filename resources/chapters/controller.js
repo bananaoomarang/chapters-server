@@ -79,19 +79,18 @@ module.exports = function (cfg) {
   controller.put = function (req, reply) {
     const username = req.auth.credentials.name;
     const from     = req.params ? req.params.id : false;
+    const author   = req.payload.author || username;
 
     const doc = {
       read:     req.payload.read    || [username],
       write:    req.payload.write   || [username],
-
       title:    trimExtension(req.payload.file.hapi.filename),
-      markdown: '',
-      ordered:  req.payload.ordered || false
+      markdown: ''
     };
 
     parseMdStream(req.payload.file, doc)
       .then(Joi.validateAsync.bind(null, doc, chapterSchema))
-      .then(chapters.save.bind(null, username, doc))
+      .then(chapters.save.bind(null, username, author, doc))
       .tap(function (record) {
         if(from)
           return chapters.link(username, from, record.id)
@@ -177,8 +176,11 @@ module.exports = function (cfg) {
     chapters
       .get(username, req.params.id, parse)
       .then(function (doc) {
-        return reply(doc)
-          .code(200);
+        if(doc.read)
+          return reply(doc)
+            .code(200);
+
+        return reply(Boom.unauthorized());
       })
       .catch(function (e) {
         debug(e);
