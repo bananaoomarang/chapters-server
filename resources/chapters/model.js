@@ -254,20 +254,30 @@ module.exports = function (cfg) {
 
     return db
       .select("expand( out('Wrote') )")
+      .fetch('*:1')
       .from('Persona')
       .all()
       .filter(function (li) {
         return (title ? (new RegExp(title)).test(li.title) : true)
       })
+      .filter(function (chapter) {
+        const rw = getPermissions(chapter, username);
+
+        debug(rw)
+        debug(chapter);
+
+        if(!rw.read) return false;
+
+        return true;
+      })
       .map(function (chapter) {
+        const rw = getPermissions(chapter, username);
+
         return db
           .select("expand( in('Wrote') )")
           .from(chapter['@rid'])
           .one()
           .then(function (writer) {
-            const rw = getPermissions(chapter, username);
-
-            if(!rw.read) throw Boom.unauthorized();
 
             chapter = processId(chapter);
 
