@@ -23,6 +23,8 @@ function pruneRecord (record) {
       if(typeof record[key] === 'object')
         return pruneRecord(record[key]);
     });
+
+  return record;
 }
 
 module.exports = function (cfg) {
@@ -145,6 +147,13 @@ module.exports = function (cfg) {
   model.get = function (username, id, parse) {
     debug('getting chapter: %s', id);
 
+    function getWriter(id) {
+      return db
+        .select("expand( in('Wrote') )")
+        .from('#' + id)
+        .one();
+    };
+
     return db
       .select()
       .from('#' + id)
@@ -171,24 +180,47 @@ module.exports = function (cfg) {
       .then(function (chapter) {
         pruneRecord(chapter);
 
-        return db
-          .select("expand( in('Wrote') )")
-          .from('#' + id)
-          .one()
 
-          .then(function (writer) {
+        const lookups = Bluebird.props({
+          writer: getWriter(chapter.id),
+
+          leads: db
+            .select("expand( out('Leads') )")
+            .from('#' + chapter.id)
+            .all()
+            .map(processId)
+            .map(pruneRecord)
+            .map(function (subChapter) {
+              return getWriter(subChapter.id)
+                .then(function (subWriter) {
+                  return {
+                    id:           subChapter.id,
+                    title:        subChapter.title,
+                    author:       subWriter.title,
+                    description:  subChapter.description,
+                  };
+                });
+            })
+        });
+
+        return lookups
+          .then(function ({ writer, leads }) {
             const rw = getPermissions(chapter, username);
 
+            debug(leads);
+
             return {
-              id:          chapter.id,
-              title:       chapter.title,
-              author:      writer.title,
-              description: chapter.description,
-              markdown:    chapter.markdown,
-              html:        chapter.html,
-              public:      chapter.public,
-              read:        rw.read,
-              write:       rw.write
+              id:           chapter.id,
+              title:        chapter.title,
+              author:       writer.title,
+              description:  chapter.description,
+              markdown:     chapter.markdown,
+              html:         chapter.html,
+              public:       chapter.public,
+              subOrdered:   leads ? leads : [],
+              subUnordered: leads ? leads : [],
+              read:         rw.read,
+              write:        rw.write
             }
           });
       });
@@ -264,9 +296,6 @@ module.exports = function (cfg) {
       .filter(function (chapter) {
         const rw = getPermissions(chapter, username);
 
-        debug(rw)
-        debug(chapter);
-
         if(!rw.read) return false;
 
         return true;
@@ -279,7 +308,6 @@ module.exports = function (cfg) {
           .from(chapter['@rid'])
           .one()
           .then(function (writer) {
-
             chapter = processId(chapter);
 
             return {

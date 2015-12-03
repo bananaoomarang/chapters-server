@@ -5,7 +5,6 @@ var async      = require('async');
 var Bluebird   = require('bluebird');
 
 var usersdb    = require('nano')('http://localhost:5984/_users');
-var chaptersdb = require('nano')('http://localhost:5984/chapters');
 
 var orientServer = require('./lib/orient');
 
