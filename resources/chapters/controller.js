@@ -93,9 +93,11 @@ module.exports = function (cfg) {
     parseMdStream(req.payload.file, doc)
       .then(Joi.validateAsync.bind(null, doc, chapterSchema))
       .then(chapters.save.bind(null, username, author, doc))
-      .tap(function (record) {
+      .tap(function ({ chapter, persona }) {
         if(from)
-          return chapters.link(username, from, record.id)
+          return chapters.link(username, from, chapter.id);
+
+        return chapters.link(username, persona.id, chapter.id);
       })
       .then(function (record) {
         reply(null, { id: record.id } )
