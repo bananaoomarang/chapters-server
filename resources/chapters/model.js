@@ -192,6 +192,7 @@ module.exports = function (cfg) {
 
           leads: db
             .select("expand( out('Leads') )")
+            .fetch('*:1')
             .from('#' + chapter.id)
             .all()
             .map(processId)
@@ -204,7 +205,9 @@ module.exports = function (cfg) {
                     title:        subChapter.title,
                     author:       subWriter.title,
                     description:  subChapter.description,
-                    ordered:      subChapter.ordered
+                    ordered:      subChapter.ordered,
+                    read:         subChapter.read,
+                    write:        subChapter.write
                   };
                 });
             })
@@ -222,8 +225,8 @@ module.exports = function (cfg) {
               markdown:     chapter.markdown,
               html:         chapter.html,
               public:       chapter.public,
-              subOrdered:   leads ? leads.filter(c => c.ordered) : [],
-              subUnordered: leads ? leads.filter(c => !c.ordered) : [],
+              subOrdered:   leads ? leads.filter(c => (c.ordered  && getPermissions(c, username).read)) : [],
+              subUnordered: leads ? leads.filter(c => (!c.ordered && getPermissions(c, username).read)) : [],
               read:         rw.read,
               write:        rw.write
             }
