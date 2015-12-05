@@ -204,6 +204,7 @@ module.exports = function (cfg) {
                     title:        subChapter.title,
                     author:       subWriter.title,
                     description:  subChapter.description,
+                    ordered:      subChapter.ordered
                   };
                 });
             })
@@ -213,8 +214,6 @@ module.exports = function (cfg) {
           .then(function ({ writer, leads }) {
             const rw = getPermissions(chapter, username);
 
-            debug(leads);
-
             return {
               id:           chapter.id,
               title:        chapter.title,
@@ -223,8 +222,8 @@ module.exports = function (cfg) {
               markdown:     chapter.markdown,
               html:         chapter.html,
               public:       chapter.public,
-              subOrdered:   leads ? leads : [],
-              subUnordered: leads ? leads : [],
+              subOrdered:   leads ? leads.filter(c => c.ordered) : [],
+              subUnordered: leads ? leads.filter(c => !c.ordered) : [],
               read:         rw.read,
               write:        rw.write
             }
