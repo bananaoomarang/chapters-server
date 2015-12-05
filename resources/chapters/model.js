@@ -79,7 +79,7 @@ module.exports = function (cfg) {
             return setOwns(ownerRID, chapter.id);
           });
       })
-      .tap(function (chapter) {
+      .then(function (chapter) {
         //
         // Create Persona if need be
         //
@@ -101,7 +101,13 @@ module.exports = function (cfg) {
               .create('EDGE', 'Wrote')
               .from('#' + persona.id)
               .to('#' + chapter.id)
-              .one();
+              .one()
+              .then(function () {
+                return {
+                  chapter,
+                  persona
+                };
+              });
           });
       });
   };

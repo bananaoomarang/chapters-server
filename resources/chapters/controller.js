@@ -56,10 +56,12 @@ module.exports = function (cfg) {
     Joi
       .validateAsync(doc, chapterSchema)
       .then(chapters.save.bind(null, username, author, doc))
-      .tap(function (record) {
+      .tap(function ({ chapter, persona }) {
         // POST /chapters/{id} links to id as the parent
         if(from)
-          return chapters.link(username, from, record.id)
+          return chapters.link(username, from, chapter.id)
+
+        return chapters.link(username, persona.id, chapter.id)
       })
       .then(function (result) {
         reply(null, { id: result.id })

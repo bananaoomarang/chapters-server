@@ -90,15 +90,15 @@ module.exports = function (cfg) {
     debug('%s getting chapters for %s', username, userToList);
 
     return chaptersdb
-      .select()
-      .from('Chapter')
+      .select("expand( out('Leads') )")
+      .from('Persona')
 
       // XXX The AND @class here is a hack. Possibly makes more semantic sense to .filter?
-      .where('\'org.couchdb.user:' + userToList + '\' IN in(\'Owns\').couchId AND @class=\'Chapter\'')
+      .where("'org.couchdb.user:" + userToList + "' IN in('Owns').couchId")
 
       .all()
+      .map(processId)
       .map(function (doc) {
-        return processId(doc);
         return {
           id:          doc.id,
           title:       doc.title,
@@ -113,10 +113,10 @@ module.exports = function (cfg) {
     return chaptersdb
       .select()
       .from('Persona')
-      .where('\'org.couchdb.user:' + userToList + '\' IN in(\'Owns\').couchId')
+      .where("'org.couchdb.user:" + userToList + "' IN in('Owns').couchId")
       .all()
+      .map(processId)
       .map(function (doc) {
-        return processId(doc);
         return {
           id:          doc.id,
           title:       doc.title,
