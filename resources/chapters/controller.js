@@ -131,9 +131,6 @@ module.exports = function (cfg) {
     if(!req.payload.write)
       req.payload.write = [username];
 
-    if(!req.payload.markdown)
-      delete req.payload.markdown;
-
     Joi
       .validateAsync(req.payload, patchChapterSchema)
       .then(chapters.patch.bind(null, username, req.params.id, req.payload, author))

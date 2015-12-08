@@ -92,10 +92,8 @@ module.exports = function (cfg) {
     return chaptersdb
       .select("expand( out('Leads') )")
       .from('Persona')
-
-      // XXX The AND @class here is a hack. Possibly makes more semantic sense to .filter?
       .where("'org.couchdb.user:" + userToList + "' IN in('Owns').couchId")
-
+      .fetch('*:1')
       .all()
       .map(processId)
       .map(function (doc) {

@@ -313,15 +313,17 @@ module.exports = function (cfg) {
     debug('%s fetching stories', username || 'anonymous');
 
     return db
-      .select("expand( out('Wrote') )")
-      .fetch('*:1')
+      .select("expand( out('Leads') )")
       .from('Persona')
+      .fetch('*:1')
       .all()
       .filter(function (li) {
         return (title ? (new RegExp(title)).test(li.title) : true)
       })
       .filter(function (chapter) {
         const rw = getPermissions(chapter, username);
+
+        debug(rw);
 
         if(!rw.read) return false;
 
