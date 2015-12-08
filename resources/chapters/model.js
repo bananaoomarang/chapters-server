@@ -177,13 +177,14 @@ module.exports = function (cfg) {
       .one()
 
       .then(function (chapter) {
-        if(parse)
+        if(parse && chapter.markdown) {
           return marked(chapter.markdown)
             .then(function (html) {
               chapter.html = html;
 
               return processId(chapter);
-            });
+            }); 
+        }
 
         return processId(chapter);
       })

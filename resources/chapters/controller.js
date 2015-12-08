@@ -51,6 +51,9 @@ module.exports = function (cfg) {
       ordered:     req.payload.ordered     || false // Don't know what this should default to, either seems good.
     };
 
+    if(!doc.markdown)
+      delete doc.markdown;
+
     Joi
       .validateAsync(doc, chapterSchema)
       .then(chapters.save.bind(null, username, author, doc))
@@ -127,6 +130,9 @@ module.exports = function (cfg) {
 
     if(!req.payload.write)
       req.payload.write = [username];
+
+    if(!req.payload.markdown)
+      delete req.payload.markdown;
 
     Joi
       .validateAsync(req.payload, patchChapterSchema)
