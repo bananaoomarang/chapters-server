@@ -35,23 +35,12 @@ module.exports = function (cfg) {
 
   let model = {};
 
-  function setOwns(parent, child) {
-    return db
-      .create('EDGE', 'Owns')
-      .from(parent)
-      .to(child)
-      .one();
-  }
 
-  model.save = function (username, author, doc) {
-    debug('saving chapter: %s', doc.title);
-
+  function resolvePermissions (doc) {
     function mapper(name) {
       return getIdentity(name)
-        .get('@rid');
+      .get('@rid');
     }
-
-    const owner = mapper(username);
 
     doc.read  = Bluebird.map(doc.read, mapper);
     doc.write = Bluebird.map(doc.write, mapper);
@@ -64,8 +53,36 @@ module.exports = function (cfg) {
       .return(doc.write)
       .tap(function (writeRID) {
         doc.write = writeRID;
-      })
+      });
+  }
 
+  function setOwns(parent, child) {
+    return db
+      .create('EDGE', 'Owns')
+      .from(parent)
+      .to(child)
+      .one();
+  }
+
+  function getOrCreatePersona (username, author) {
+    return model
+      .getPersona(username, author)
+      .then(function (persona) {
+        if(!persona) {
+          debug('No persona exists for this author, creating %s', author);
+
+          return model
+            .addPersona(username, author)
+        }
+
+        return persona;
+      });
+  }
+
+  model.save = function (username, author, doc) {
+    debug('saving chapter: %s', doc.title);
+
+    return resolvePermissions(doc)
       .return(db.class.get('Chapter'))
       .call('create', doc)
       .then(processId)
@@ -74,7 +91,8 @@ module.exports = function (cfg) {
       // Set ownership
       //
       .tap(function (chapter) {
-        return owner
+        return getIdentity(username)
+          .get('@rid')
           .then(function (ownerRID) {
             return setOwns(ownerRID, chapter.id);
           });
@@ -83,19 +101,7 @@ module.exports = function (cfg) {
         //
         // Create Persona if need be
         //
-
-        return model
-          .getPersona(username, author)
-          .then(function (persona) {
-            if(!persona) {
-              debug('No persona exists for this author, creating %s', author);
-
-              return model
-                .addPersona(username, author)
-            }
-
-            return persona;
-          })
+        return getOrCreatePersona(username, author)
           .then(function (persona) {
             return db
               .create('EDGE', 'Wrote')
@@ -234,18 +240,30 @@ module.exports = function (cfg) {
       });
   };
 
-  model.patch = function (username, id, diff) {
+  model.patch = function (username, id, diff, author) {
     debug('updating chapter: %s', id);
 
-    return model
-      .get(username, id, false)
-      .then(function (doc) {
-        if(!doc.write) throw Boom.unauthorized();
+    return resolvePermissions(diff)
+      .then(function () {
+        return model
+          .get(username, id, false)
+          .then(function (doc) {
+            if(!doc.write) throw Boom.unauthorized();
 
-        return db
-          .update('#' + id)
-          .set(diff)
-          .one();
+            return db
+              .update('#' + id)
+              .set(diff)
+              .one()
+              .then(function (chapter) {
+                return getOrCreatePersona(username, author)
+                  .then(function (persona) {
+                    return {
+                      chapter,
+                      persona
+                    };
+                  });
+              });
+          });
       });
   };
 

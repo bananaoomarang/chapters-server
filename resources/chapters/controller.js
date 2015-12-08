@@ -1,5 +1,3 @@
-'use strict';
-
 const debug              = require('debug')('chapters');
 const Boom               = require('boom');
 const Bluebird           = require('bluebird');
@@ -80,28 +78,32 @@ module.exports = function (cfg) {
   // Multipart file upload
   controller.put = function (req, reply) {
     const username = req.auth.credentials.name;
-    const from     = req.params ? req.params.id : false;
     const author   = req.payload.author || username;
+    const id       = req.headers['x-chapter-id'];
+    const title    = req.headers['x-chapter-title'];
 
     const doc = {
       read:     req.payload.read    || [username],
       write:    req.payload.write   || [username],
-      title:    trimExtension(req.payload.file.hapi.filename),
+      title:    title || trimExtension(req.payload.file.hapi.filename),
       markdown: ''
     };
 
     parseMdStream(req.payload.file, doc)
-      .then(Joi.validateAsync.bind(null, doc, chapterSchema))
-      .then(chapters.save.bind(null, username, author, doc))
-      .tap(function ({ chapter, persona }) {
-        if(from)
-          return chapters.link(username, from, chapter.id);
-
-        return chapters.link(username, persona.id, chapter.id);
+      .then(function () {
+        return id ?
+          Joi
+            .validateAsync(doc, patchChapterSchema)
+            .then(chapters.patch.bind(null, username, id, doc, author))
+          :
+          Joi
+            .validateAsync(doc, chapterSchema)
+            .then(chapters.save.bind(null, username, author, doc));
+            
       })
-      .then(function (record) {
-        reply(null, { id: record.id } )
-          .code(201);
+      .then(function ({ chapter, persona }) {
+        reply(null, { id: chapter.id } )
+          .code(200);
       })
       .catch(function (e) {
         debug(e);
@@ -115,13 +117,20 @@ module.exports = function (cfg) {
 
   controller.patch  = function (req, reply) {
     const username = req.auth.credentials.name;
+    const author   = req.payload.author || username;
 
     if(!isRid(req.params.id))
       return reply(Boom.notFound('Invalid chapter ID'));
 
+    if(!req.payload.read)
+      req.payload.read = [username];
+
+    if(!req.payload.write)
+      req.payload.write = [username];
+
     Joi
       .validateAsync(req.payload, patchChapterSchema)
-      .then(chapters.patch.bind(null, username, req.params.id, req.payload))
+      .then(chapters.patch.bind(null, username, req.params.id, req.payload, author))
       .then(function (record) {
         reply(null, { id: record.id });
       })
