@@ -39,7 +39,7 @@ module.exports = function (cfg) {
   function resolvePermissions (doc) {
     function mapper(name) {
       return getIdentity(name)
-      .get('@rid');
+        .get('@rid');
     }
 
     doc.read  = Bluebird.map(doc.read, mapper);
@@ -56,12 +56,30 @@ module.exports = function (cfg) {
       });
   }
 
-  function setOwns(parent, child) {
+  function setOwns (parent, child) {
     return db
       .create('EDGE', 'Owns')
       .from(parent)
       .to(child)
       .one();
+  }
+
+  function mapId (arr) {
+    return arr.map(id => '#' + id);
+  }
+
+  function mapIds (doc) {
+    if(doc.read)
+      doc.read      = mapId(doc.read);
+
+    if(doc.write)
+      doc.write     = mapId(doc.write);
+
+    if(doc.ordered)
+      doc.ordered   = mapId(doc.ordered);
+
+    if(doc.unordered)
+      doc.unordered = mapId(doc.unordered);
   }
 
   function getOrCreatePersona (username, author) {
@@ -193,49 +211,22 @@ module.exports = function (cfg) {
       .then(function (chapter) {
         pruneRecord(chapter);
 
-
-        const lookups = Bluebird.props({
-          writer: getWriter(chapter.id),
-
-          leads: db
-            .select("expand( out('Leads') )")
-            .fetch('*:1')
-            .from('#' + chapter.id)
-            .all()
-            .map(processId)
-            .map(pruneRecord)
-            .map(function (subChapter) {
-              return getWriter(subChapter.id)
-                .then(function (subWriter) {
-                  return {
-                    id:           subChapter.id,
-                    title:        subChapter.title,
-                    author:       subWriter.title,
-                    description:  subChapter.description,
-                    ordered:      subChapter.ordered,
-                    read:         subChapter.read,
-                    write:        subChapter.write
-                  };
-                });
-            })
-        });
-
-        return lookups
-          .then(function ({ writer, leads }) {
+        return getWriter(chapter.id)
+          .then(function (writer) {
             const rw = getPermissions(chapter, username);
 
             return {
-              id:           chapter.id,
-              title:        chapter.title,
-              author:       writer.title,
-              description:  chapter.description,
-              markdown:     chapter.markdown,
-              html:         chapter.html,
-              public:       chapter.public,
-              subOrdered:   leads ? leads.filter(c => (c.ordered  && getPermissions(c, username).read)) : [],
-              subUnordered: leads ? leads.filter(c => (!c.ordered && getPermissions(c, username).read)) : [],
-              read:         rw.read,
-              write:        rw.write
+              id:          chapter.id,
+              title:       chapter.title,
+              author:      writer.title,
+              description: chapter.description,
+              markdown:    chapter.markdown,
+              html:        chapter.html,
+              public:      chapter.public,
+              ordered:     chapter.ordered.filter(c => getPermissions(c, username).read).map(processId),
+              unordered:   chapter.unordered.filter(c => getPermissions(c, username).read).map(processId),
+              read:        rw.read,
+              write:       rw.write
             }
           });
       });
@@ -243,6 +234,8 @@ module.exports = function (cfg) {
 
   model.patch = function (username, id, diff, author) {
     debug('updating chapter: %s', id);
+
+    mapIds(diff);
 
     return resolvePermissions(diff)
       .then(function () {
@@ -313,22 +306,19 @@ module.exports = function (cfg) {
     debug('%s fetching stories', username || 'anonymous');
 
     return db
-      .select("expand( out('Leads') )")
+      .select()
       .from('Persona')
       .fetch('*:1')
       .all()
-      .filter(function (li) {
-        return (title ? (new RegExp(title)).test(li.title) : true)
-      })
       .filter(function (chapter) {
         const rw = getPermissions(chapter, username);
 
-        debug(rw);
-
         if(!rw.read) return false;
 
-        return true;
+        return (title ? (new RegExp(title)).test(chapter.title) : true)
       })
+      .map(c => c.ordered.concat(c.unordered))
+      .spread()
       .map(function (chapter) {
         const rw = getPermissions(chapter, username);
 
@@ -353,14 +343,33 @@ module.exports = function (cfg) {
       });
   }
 
-  model.link = function (username, from, to) {
+  model.link = function (username, from, to, ordered) {
     debug('%s linking %s to %s', username, from, to);
 
-    return db
-      .create('EDGE', 'Leads')
-      .from('#' + from)
-      .to('#' + to)
-      .one();
+    const toRID      = db.select().from(to).one().get('@rid');
+    const fromRecord = db.select().fetch('*:1').from(from).one();
+
+    Bluebird
+      .props({ toRID, fromRecord })
+      .then(function ({ toRID, fromRecord }) {
+        let diff = {};
+
+        if(ordered) {
+          let arr = fromRecord.ordered;
+
+          arr.push(toRID);
+
+          diff.ordered = arr;
+        } else {
+          let arr = fromRecord.unordered;
+
+          arr.push(toRID);
+
+          diff.unordered = arr;
+        }
+
+        return model.patch(username, processId(fromRecord).id, diff, fromRecord.author.title)
+      });
   };
 
   return model;

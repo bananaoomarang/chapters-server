@@ -28,11 +28,6 @@ function initDatabases() {
       console.log('Added vertex class \'Identity\'');
     })
 
-    .return(chaptersdb.class.create('Leads', 'E'))
-    .tap(function () {
-      console.log('Added edge class \'Leads\'');
-    })
-
     .return(chaptersdb.class.create('Wrote', 'E'))
     .tap(function () {
       console.log('Added edge class \'Wrote\'');
@@ -70,7 +65,11 @@ function createClassProps() {
       },
       {
         name: 'ordered',
-        type: 'boolean'
+        type: 'linklist'
+      },
+      {
+        name: 'unordered',
+        type: 'linklist'
       },
       {
         name: 'public',

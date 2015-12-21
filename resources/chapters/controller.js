@@ -1,3 +1,5 @@
+'use strict';
+
 const debug              = require('debug')('chapters');
 const Boom               = require('boom');
 const Bluebird           = require('bluebird');
@@ -60,9 +62,9 @@ module.exports = function (cfg) {
       .tap(function ({ chapter, persona }) {
         // POST /chapters/{id} links to id as the parent
         if(from)
-          return chapters.link(username, from, chapter.id)
+          return chapters.link(username, from, chapter.id, doc.ordered)
 
-        return chapters.link(username, persona.id, chapter.id)
+        return chapters.link(username, persona.id, chapter.id, doc.ordered);
       })
       .then(function (result) {
         reply(null, { id: result.id })

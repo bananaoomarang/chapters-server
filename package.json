@@ -8,7 +8,7 @@
   },
   "main": "server",
   "scripts": {
-    "start": "./bin/server",
+    "start": "node --harmony_destructuring ./bin/server",
     "validate": "eslint index.js lib resources test bin",
     "test": "lab -m 0",
     "init": "./bin/generateDatabases",
