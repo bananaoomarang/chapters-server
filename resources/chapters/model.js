@@ -126,12 +126,7 @@ module.exports = function (cfg) {
               .from('#' + persona.id)
               .to('#' + chapter.id)
               .one()
-              .then(function () {
-                return {
-                  chapter,
-                  persona
-                };
-              });
+              .return(chapter);
           });
       });
   };
@@ -143,20 +138,27 @@ module.exports = function (cfg) {
 
     doc.title       = name;
     doc.description = 'bio';
+    doc.ordered     = [];
+    doc.unordered   = [];
+    doc.read        = [username];
+    doc.write       = [username];
 
-    return db
-      .class
-      .get('Persona')
-      .call('create', doc)
-      
-      .tap(function (newPersona) {
-        return getIdentity(username)
-          .then(function (identity) {
-            return setOwns(identity['@rid'], newPersona['@rid'])
+    return resolvePermissions(doc)
+      .then(function () {
+        return db
+          .class
+          .get('Persona')
+          .call('create', doc)
+          .then(function (personaRecord) {
+            return getIdentity(username)
+              .then(function (identity) {
+                return setOwns(identity['@rid'], personaRecord['@rid'])
+              })
+              .then(function () {
+                return processId(personaRecord);
+              });
           });
-      })
-
-      .then(processId)
+      });
   };
 
   model.getPersona = function (username, name, owner) {
@@ -223,8 +225,8 @@ module.exports = function (cfg) {
               markdown:    chapter.markdown,
               html:        chapter.html,
               public:      chapter.public,
-              ordered:     chapter.ordered.filter(c => getPermissions(c, username).read).map(processId),
-              unordered:   chapter.unordered.filter(c => getPermissions(c, username).read).map(processId),
+              ordered:     chapter.ordered ? chapter.ordered.filter(c => getPermissions(c, username).read).map(processId) : [],
+              unordered:   chapter.unordered ? chapter.unordered.filter(c => getPermissions(c, username).read).map(processId) : [],
               read:        rw.read,
               write:       rw.write
             }
@@ -237,25 +239,22 @@ module.exports = function (cfg) {
 
     mapIds(diff);
 
-    return resolvePermissions(diff)
-      .then(function () {
-        return model
-          .get(username, id, false)
-          .then(function (doc) {
-            if(!doc.write) throw Boom.unauthorized();
+    return model
+      .get(username, id, false)
+      .then(function (doc) {
+        if(!doc.write) throw Boom.unauthorized();
 
-            return db
-              .update('#' + id)
-              .set(diff)
-              .one()
-              .then(function (chapter) {
-                return getOrCreatePersona(username, author)
-                  .then(function (persona) {
-                    return {
-                      chapter,
-                      persona
-                    };
-                  });
+        return db
+          .update('#' + id)
+          .set(diff)
+          .one()
+          .then(function (chapter) {
+            return getOrCreatePersona(username, author)
+              .then(function (persona) {
+                return {
+                  chapter,
+                  persona
+                };
               });
           });
       });
@@ -367,6 +366,9 @@ module.exports = function (cfg) {
 
           diff.unordered = arr;
         }
+
+        if(fromRecord['@class'] === 'Persona')
+          return model.patch(username, processId(fromRecord).id, diff, fromRecord.title);
 
         return model.patch(username, processId(fromRecord).id, diff, fromRecord.author.title)
       });

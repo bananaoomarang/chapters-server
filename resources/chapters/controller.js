@@ -50,7 +50,8 @@ module.exports = function (cfg) {
 
       title:       req.payload.title,
       markdown:    req.payload.markdown,
-      ordered:     req.payload.ordered     || false // Don't know what this should default to, either seems good.
+      ordered:     req.payload.ordered     || [], 
+      unordered:   req.payload.unordered   || [], 
     };
 
     if(!doc.markdown)
@@ -59,15 +60,13 @@ module.exports = function (cfg) {
     Joi
       .validateAsync(doc, chapterSchema)
       .then(chapters.save.bind(null, username, author, doc))
-      .tap(function ({ chapter, persona }) {
+      .tap(function (chapter) {
         // POST /chapters/{id} links to id as the parent
         if(from)
           return chapters.link(username, from, chapter.id, doc.ordered)
-
-        return chapters.link(username, persona.id, chapter.id, doc.ordered);
       })
-      .then(function (result) {
-        reply(null, { id: result.id })
+      .then(function (chapter) {
+        reply(null, { id: chapter.id })
           .code(201);
       })
       .catch(function (e) {
@@ -106,7 +105,7 @@ module.exports = function (cfg) {
             .then(chapters.save.bind(null, username, author, doc));
             
       })
-      .then(function ({ chapter, persona }) {
+      .then(function ({ chapter }) {
         reply(null, { id: chapter.id } )
           .code(200);
       })

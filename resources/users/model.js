@@ -90,7 +90,7 @@ module.exports = function (cfg) {
     debug('%s getting chapters for %s', username, userToList);
 
     return chaptersdb
-      .select("expand( out('Leads') )")
+      .select("expand( out('Wrote') )")
       .from('Persona')
       .where("'org.couchdb.user:" + userToList + "' IN in('Owns').couchId")
       .fetch('*:1')

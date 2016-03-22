@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node --harmony_destructuring ./bin/server",
     "validate": "eslint index.js lib resources test bin",
-    "test": "lab -m 0",
+    "test": "node --harmony_destructuring ./node_modules/.bin/lab -m 0",
     "init": "./bin/generateDatabases",
     "clean": "./bin/removeDatabases",
     "reset": "./bin/removeDatabases && ./bin/generateDatabases"
@@ -25,7 +25,7 @@
     "code": "^2.0.1",
     "debug": "^2.2.0",
     "eslint": "^1.9.0",
-    "lab": "^7.2.0",
+    "lab": "^8.2.0",
     "pre-commit": "^1.1.2",
     "supertest": "^1.1.0"
   },
@@ -35,8 +35,8 @@
     "boom": "^3.0.0",
     "good": "^6.4.0",
     "good-console": "^5.2.0",
-    "hapi": "^11.1.0",
-    "hapi-auth-jwt": "^3.0.0",
+    "hapi": "^13.0.0",
+    "hapi-auth-jwt": "^4.0.0",
     "joi": "^7.0.0",
     "jsonwebtoken": "^5.4.1",
     "marked": "^0.3.5",
