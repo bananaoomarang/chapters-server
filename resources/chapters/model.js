@@ -316,30 +316,40 @@ module.exports = function (cfg) {
 
         return (title ? (new RegExp(title)).test(chapter.title) : true)
       })
-      .map(c => c.ordered.concat(c.unordered))
-      .spread()
       .map(function (chapter) {
-        const rw = getPermissions(chapter, username);
-
         return db
-          .select("expand( in('Wrote') )")
+          .select("expand( out('Wrote') )")
           .from(chapter['@rid'])
-          .one()
-          .then(function (writer) {
-            chapter = processId(chapter);
+          .fetch('*:1')
+          .all()
+          .filter(c => {
+            return getPermissions(c, username).read
+          })
+          .map(function (chapter) {
+            const rw = getPermissions(chapter, username);
 
-            return {
-              id:          chapter.id,
-              title:       chapter.title,
-              author:      writer.title,
-              description: chapter.description,
-              markdown:    chapter.markdown,
-              html:        chapter.html,
-              read:        rw.read,
-              write:       rw.write
-            }
-          });
-      });
+            return db
+              .select("expand( in('Wrote') )")
+              .from(chapter['@rid'])
+              .one()
+              .then(function (writer) {
+                chapter = processId(chapter);
+
+                return {
+                  id:          chapter.id,
+                  title:       chapter.title,
+                  author:      writer.title,
+                  description: chapter.description,
+                  markdown:    chapter.markdown,
+                  html:        chapter.html,
+                  read:        rw.read,
+                  write:       rw.write
+                }
+              });
+          })
+      })
+      // Cheeky flatmap
+      .reduce( (prev, curr) => prev.concat(curr));
   }
 
   model.link = function (username, from, to, ordered) {
