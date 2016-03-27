@@ -10,21 +10,22 @@ const processId   = require('../../lib/processId');
 function pruneRecord (record) {
   const testJex = /^(in_|out_|@)/;
 
+  let mut = Object.assign({}, record);
+
   Object
-    .keys(record)
+    .keys(mut)
     .forEach(function (key) {
       if(testJex.test(key))
-        delete record[key];
+        delete mut[key];
 
+      if(mut[key] instanceof Array)
+        mut[key] = mut[key].map(pruneRecord);
 
-      if(record[key] instanceof Array)
-        return record[key].forEach(pruneRecord);
-
-      if(typeof record[key] === 'object')
-        return pruneRecord(record[key]);
+      if(typeof mut[key] === 'object')
+        return pruneRecord(mut[key]);
     });
 
-  return record;
+  return mut;
 }
 
 module.exports = function (cfg) {
@@ -137,7 +138,7 @@ module.exports = function (cfg) {
     let doc = Object.create(null);
 
     doc.title       = name;
-    doc.description = 'bio';
+    doc.description = persona.bio || '???';
     doc.ordered     = [];
     doc.unordered   = [];
     doc.read        = [username];
@@ -211,8 +212,6 @@ module.exports = function (cfg) {
 
       // Get the writer, can't get this to work more efficiently?
       .then(function (chapter) {
-        pruneRecord(chapter);
-
         return getWriter(chapter.id)
           .then(function (writer) {
             const rw = getPermissions(chapter, username);
@@ -225,12 +224,13 @@ module.exports = function (cfg) {
               markdown:    chapter.markdown,
               html:        chapter.html,
               public:      chapter.public,
-              ordered:     chapter.ordered ? chapter.ordered.filter(c => getPermissions(c, username).read).map(processId) : [],
-              unordered:   chapter.unordered ? chapter.unordered.filter(c => getPermissions(c, username).read).map(processId) : [],
+              ordered:     chapter.ordered.filter(c => getPermissions(c, username).read).map(processId),
+              unordered:   chapter.unordered.filter(c => getPermissions(c, username).read).map(processId),
               read:        rw.read,
               write:       rw.write
             }
-          });
+          })
+          .then(pruneRecord);
       });
   };
 
@@ -356,31 +356,25 @@ module.exports = function (cfg) {
     debug('%s linking %s to %s', username, from, to);
 
     const toRID      = db.select().from(to).one().get('@rid');
-    const fromRecord = db.select().fetch('*:1').from(from).one();
+    const fromRecord = db.select().from(from).one();
+    const fromAuthor = db.select().select("expand( in('Wrote') )").from(from).one();
 
     Bluebird
-      .props({ toRID, fromRecord })
-      .then(function ({ toRID, fromRecord }) {
-        let diff = {};
-
-        if(ordered) {
-          let arr = fromRecord.ordered;
-
-          arr.push(toRID);
-
-          diff.ordered = arr;
-        } else {
-          let arr = fromRecord.unordered;
-
-          arr.push(toRID);
-
-          diff.unordered = arr;
-        }
-
-        if(fromRecord['@class'] === 'Persona')
-          return model.patch(username, processId(fromRecord).id, diff, fromRecord.title);
-
-        return model.patch(username, processId(fromRecord).id, diff, fromRecord.author.title)
+      .props({ toRID, fromRecord, fromAuthor })
+      .then(function ({ toRID, fromRecord, fromAuthor }) {
+        return db
+          .update(fromRecord['@rid'])
+          .add(ordered ? 'ordered' : 'unordered', toRID)
+          .one()
+          .then(function (chapter) {
+            return getOrCreatePersona(username, fromAuthor.title)
+              .then(function (persona) {
+                return {
+                  chapter,
+                  persona
+                };
+              });
+          });
       });
   };
 

@@ -63,7 +63,7 @@ module.exports = function (cfg) {
       .tap(function (chapter) {
         // POST /chapters/{id} links to id as the parent
         if(from)
-          return chapters.link(username, from, chapter.id, doc.ordered)
+          return chapters.link(username, from, chapter.id, doc.isOrdered)
       })
       .then(function (chapter) {
         reply(null, { id: chapter.id })
@@ -193,9 +193,10 @@ module.exports = function (cfg) {
     chapters
       .get(username, req.params.id, parse)
       .then(function (doc) {
-        if(doc.read)
+        if(doc.read) {
           return reply(doc)
             .code(200);
+        }
 
         return reply(Boom.unauthorized())
       })
