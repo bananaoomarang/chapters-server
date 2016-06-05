@@ -81,15 +81,18 @@ module.exports = function (cfg) {
 
   // Multipart file upload
   controller.put = function (req, reply) {
-    const username = req.auth.credentials.name;
-    const author   = req.payload.author || username;
-    const id       = req.headers['x-chapter-id'];
-    const title    = req.headers['x-chapter-title'];
+    const username  = req.auth.credentials.name;
+    const author    = req.payload.author || username;
+    const id        = req.headers['x-chapter-id'];
+    const title     = req.headers['x-chapter-title'];
 
     const doc = {
-      read:     req.payload.read    || [username],
-      write:    req.payload.write   || [username],
-      title:    title || trimExtension(req.payload.file.hapi.filename),
+      read:      req.payload.read      || [username],
+      write:     req.payload.write     || [username],
+      title:     title                 || trimExtension(req.payload.file.hapi.filename),
+      ordered:   req.payload.ordered   || [],
+      unordered: req.payload.unordered || [],
+
       markdown: ''
     };
 
@@ -103,11 +106,10 @@ module.exports = function (cfg) {
           Joi
             .validateAsync(doc, chapterSchema)
             .then(chapters.save.bind(null, username, author, doc));
-            
       })
-      .then(function ({ chapter }) {
+      .then(function (chapter) {
         reply(null, { id: chapter.id } )
-          .code(200);
+          .code(201);
       })
       .catch(function (e) {
         debug(e);

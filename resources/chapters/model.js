@@ -36,25 +36,24 @@ module.exports = function (cfg) {
 
   let model = {};
 
-
   function resolvePermissions (doc) {
     function mapper(name) {
       return getIdentity(name)
         .get('@rid');
     }
 
-    doc.read  = Bluebird.map(doc.read, mapper);
-    doc.write = Bluebird.map(doc.write, mapper);
+    let mut = Object.assign({}, doc);
+    const rw = {
+      r: Bluebird.map(doc.read, mapper),
+      w: Bluebird.map(doc.write, mapper),
+    };
 
-    return doc.read
-      .tap(function (readRID) {
-        doc.read = readRID;
+    return Bluebird.props(rw)
+      .then(function ({ r, w }) {
+        mut.read  = r;
+        mut.write = w;
       })
-
-      .return(doc.write)
-      .tap(function (writeRID) {
-        doc.write = writeRID;
-      });
+      .return(mut);
   }
 
   function setOwns (parent, child) {
@@ -63,24 +62,6 @@ module.exports = function (cfg) {
       .from(parent)
       .to(child)
       .one();
-  }
-
-  function mapId (arr) {
-    return arr.map(id => '#' + id);
-  }
-
-  function mapIds (doc) {
-    if(doc.read)
-      doc.read      = mapId(doc.read);
-
-    if(doc.write)
-      doc.write     = mapId(doc.write);
-
-    if(doc.ordered)
-      doc.ordered   = mapId(doc.ordered);
-
-    if(doc.unordered)
-      doc.unordered = mapId(doc.unordered);
   }
 
   function getOrCreatePersona (username, author) {
@@ -102,8 +83,12 @@ module.exports = function (cfg) {
     debug('saving chapter: %s', doc.title);
 
     return resolvePermissions(doc)
-      .return(db.class.get('Chapter'))
-      .call('create', doc)
+      .then(function (chapter) {
+        return db
+          .class
+          .get('Chapter')
+          .call('create', chapter);
+      })
       .then(processId)
 
       //
@@ -133,7 +118,10 @@ module.exports = function (cfg) {
   };
 
   model.addPersona = function (username, name, persona) {
-    debug('%s adding new persona %s written by %s', username, name, (persona || username));
+    if(!persona)
+      persona = {};
+
+    debug('%s adding new persona %s written by %s', username, name, (persona.name || username));
 
     let doc = Object.create(null);
 
@@ -145,11 +133,11 @@ module.exports = function (cfg) {
     doc.write       = [username];
 
     return resolvePermissions(doc)
-      .then(function () {
+      .then(function (chapter) {
         return db
           .class
           .get('Persona')
-          .call('create', doc)
+          .call('create', chapter)
           .then(function (personaRecord) {
             return getIdentity(username)
               .then(function (identity) {
@@ -237,16 +225,19 @@ module.exports = function (cfg) {
   model.patch = function (username, id, diff, author) {
     debug('updating chapter: %s', id);
 
-    mapIds(diff);
-
     return model
       .get(username, id, false)
       .then(function (doc) {
         if(!doc.write) throw Boom.unauthorized();
 
+        return resolvePermissions(diff);
+      })
+      .then(function (resolvedDiff) {
+        debug(resolvedDiff)
+
         return db
           .update('#' + id)
-          .set(diff)
+          .set(resolvedDiff)
           .one()
           .then(function (chapter) {
             return getOrCreatePersona(username, author)
@@ -266,12 +257,12 @@ module.exports = function (cfg) {
     return model
       .get(username, id, false)
       .then(function (doc) {
-        if(doc.write)
-          return db
-            .record
-            .delete('#' + id);
+        if(!doc.write)
+          throw Boom.unauthorized();
 
-        throw Boom.unauthorized();
+       return db
+          .record
+          .delete('#' + id);
       });
   };
 
