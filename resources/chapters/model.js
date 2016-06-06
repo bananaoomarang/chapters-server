@@ -7,6 +7,8 @@ const Boom        = require('boom');
 const permissions = require('../../lib/permissions');
 const processId   = require('../../lib/processId');
 
+const RecordID    = require('orientjs/lib/recordid');
+
 function pruneRecord (record) {
   const testJex = /^(in_|out_|@)/;
 
@@ -233,7 +235,13 @@ module.exports = function (cfg) {
         return resolvePermissions(diff);
       })
       .then(function (resolvedDiff) {
-        debug(resolvedDiff)
+
+        // TODO If we don't use RecordID, Orientjs/db freaks out. Probably an OrientJS bug?
+        if(resolvedDiff.ordered)
+          resolvedDiff.ordered = resolvedDiff.ordered.map(subID => RecordID('#' + subID));
+
+        if(resolvedDiff.unordered)
+          resolvedDiff.unordered = resolvedDiff.unordered.map(subID => RecordID('#' + subID));
 
         return db
           .update('#' + id)

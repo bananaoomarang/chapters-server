@@ -45,13 +45,14 @@ module.exports = function (cfg) {
     const author   = req.payload.author || username;
 
     const doc = {
-      read:        req.payload.read        || [username],
-      write:       req.payload.write       || [username],
+      read:        req.payload.read      || [username],
+      write:       req.payload.write     || [username],
 
       title:       req.payload.title,
       markdown:    req.payload.markdown,
-      ordered:     req.payload.ordered     || [], 
-      unordered:   req.payload.unordered   || [], 
+      ordered:     req.payload.ordered   || [], 
+      unordered:   req.payload.unordered || [],
+      isOrdered:   !!req.payload.isOrdered,
     };
 
     if(!doc.markdown)
