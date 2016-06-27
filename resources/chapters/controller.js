@@ -60,7 +60,7 @@ module.exports = function (cfg) {
 
     Joi
       .validateAsync(doc, chapterSchema)
-      .then(chapters.save.bind(null, username, author, doc))
+      .then(chapters.save.bind(null, username, from ? author : null, doc))
       .tap(function (chapter) {
         // POST /chapters/{id} links to id as the parent
         if(from)

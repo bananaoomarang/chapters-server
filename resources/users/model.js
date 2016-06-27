@@ -91,8 +91,8 @@ module.exports = function (cfg) {
 
     return chaptersdb
       .select("expand( out('Wrote') )")
-      .from('Persona')
-      .where("'org.couchdb.user:" + userToList + "' IN in('Owns').couchId")
+      .from('Identity')
+      .where("couchId='org.couchdb.user:" + userToList + "'")
       .fetch('*:1')
       .all()
       .map(processId)
@@ -100,7 +100,8 @@ module.exports = function (cfg) {
         return {
           id:          doc.id,
           title:       doc.title,
-          description: doc.description
+          description: doc.description,
+          author:      userToList
         };
       });
   };

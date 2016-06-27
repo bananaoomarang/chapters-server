@@ -104,18 +104,34 @@ module.exports = function (cfg) {
           });
       })
       .then(function (chapter) {
-        //
-        // Create Persona if need be
-        //
-        return getOrCreatePersona(username, author)
-          .then(function (persona) {
-            return db
-              .create('EDGE', 'Wrote')
-              .from('#' + persona.id)
-              .to('#' + chapter.id)
-              .one()
-              .return(chapter);
-          });
+        if (author) {
+          //
+          // Create Persona if need be
+          //
+          return getOrCreatePersona(username, author)
+            .then(function (persona) {
+              return db
+                .create('EDGE', 'Wrote')
+                .from('#' + persona.id)
+                .to('#' + chapter.id)
+                .one()
+                .return(chapter);
+            });
+        } else {
+          //
+          // Link directly to the Identity 
+          //
+          return getIdentity(username)
+            .get('@rid')
+            .then(function (identityRID) {
+              return db
+                .create('EDGE', 'Wrote')
+                .from(identityRID)
+                .to('#' + chapter.id)
+                .one()
+                .return(chapter);
+            });
+        }
       });
   };
 
@@ -215,7 +231,8 @@ module.exports = function (cfg) {
             return {
               id:          chapter.id,
               title:       chapter.title,
-              author:      writers.writer.title,
+              author:      writers.writer.title || writers.writer.couchId.split(':')[1],
+
               description: chapter.description,
               markdown:    chapter.markdown,
               html:        chapter.html,
@@ -320,15 +337,11 @@ module.exports = function (cfg) {
 
     return db
       .select()
-      .from('Persona')
+      .from('Identity')
       .fetch('*:1')
       .all()
       .filter(function (chapter) {
-        const rw = getPermissions(chapter, username);
-
-        if(!rw.read) return false;
-
-        return (title ? (new RegExp(title)).test(chapter.title) : true)
+        return title ? (new RegExp(title)).test(chapter.title) : true
       })
       .map(function (chapter) {
         return db
@@ -352,7 +365,7 @@ module.exports = function (cfg) {
                 return {
                   id:          chapter.id,
                   title:       chapter.title,
-                  author:      writer.title,
+                  author:      writer.couchId.split(':')[1],
                   description: chapter.description,
                   markdown:    chapter.markdown,
                   html:        chapter.html,
