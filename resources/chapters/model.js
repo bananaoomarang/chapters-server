@@ -173,7 +173,7 @@ module.exports = function (cfg) {
     function getWriter(id) {
       return db
         .select("expand( in('Wrote') )")
-        .from('#' + id)
+        .from(id)
         .one();
     };
 
@@ -181,8 +181,8 @@ module.exports = function (cfg) {
       .select()
       .from('#' + id)
 
-      // Fetch one level deep
-      .fetch('*:1')
+      // Fetch two levels deep
+      .fetch('*:2')
 
       // We fetched by rid so there can only be one
       .one()
@@ -193,29 +193,44 @@ module.exports = function (cfg) {
             .then(function (html) {
               chapter.html = html;
 
-              return processId(chapter);
+              return chapter;
             }); 
         }
 
-        return processId(chapter);
+        return chapter;
       })
 
-      // Get the writer, can't get this to work more efficiently?
+      // Get the authors, can't get this to work more efficiently?
       .then(function (chapter) {
-        return getWriter(chapter.id)
-          .then(function (writer) {
+
+        return Bluebird.props({
+          writer:    getWriter(chapter['@rid']),
+          ordered:   Bluebird.all(chapter.ordered.map(c => getWriter(c['@rid']))),
+          unordered: Bluebird.all(chapter.unordered.map(c => getWriter(c['@rid'])))
+        })
+          .then(function (writers) {
             const rw = getPermissions(chapter, username);
+            chapter = processId(chapter);
 
             return {
               id:          chapter.id,
               title:       chapter.title,
-              author:      writer.title,
+              author:      writers.writer.title,
               description: chapter.description,
               markdown:    chapter.markdown,
               html:        chapter.html,
               public:      chapter.public,
-              ordered:     chapter.ordered.filter(c => getPermissions(c, username).read).map(processId),
-              unordered:   chapter.unordered.filter(c => getPermissions(c, username).read).map(processId),
+
+              ordered:     chapter.ordered
+                .filter(c => getPermissions(c, username).read)
+                .map((c, i) => Object.assign( c, { author: writers.ordered[i].title }))
+                .map(processId),
+
+              unordered:   chapter.unordered
+                .filter(c => getPermissions(c, username).read)
+                .map((c, i) => Object.assign( c, { author: writers.unordered[i].title }))
+                .map(processId),
+
               read:        rw.read,
               write:       rw.write
             }
