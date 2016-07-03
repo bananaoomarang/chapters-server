@@ -224,70 +224,107 @@ module.exports = function (cfg) {
           ordered:   Bluebird.all(chapter.ordered.map(c => getWriter(c['@rid']))),
           unordered: Bluebird.all(chapter.unordered.map(c => getWriter(c['@rid'])))
         })
-          .then(function (writers) {
-            const rw = getPermissions(chapter, username);
-            chapter = processId(chapter);
+        .then(function (writers) {
+          const rw = getPermissions(chapter, username);
+          chapter = processId(chapter);
 
-            return {
-              id:          chapter.id,
-              title:       chapter.title,
-              author:      writers.writer.title || writers.writer.couchId.split(':')[1],
+          return {
+            id:          chapter.id,
+            title:       chapter.title,
+            author:      writers.writer.title || writers.writer.couchId.split(':')[1],
 
-              description: chapter.description,
-              markdown:    chapter.markdown,
-              html:        chapter.html,
-              public:      chapter.public,
+            description: chapter.description,
+            markdown:    chapter.markdown,
+            html:        chapter.html,
+            public:      chapter.public,
 
-              ordered:     chapter.ordered
-                .filter(c => getPermissions(c, username).read)
-                .map((c, i) => Object.assign( c, { author: writers.ordered[i].title }))
-                .map(processId),
+            ordered:     chapter.ordered
+              .filter(c => getPermissions(c, username).read)
+              .map((c, i) => Object.assign( c, { author: writers.ordered[i].title }))
+              .map(processId),
 
-              unordered:   chapter.unordered
-                .filter(c => getPermissions(c, username).read)
-                .map((c, i) => Object.assign( c, { author: writers.unordered[i].title }))
-                .map(processId),
+            unordered:   chapter.unordered
+              .filter(c => getPermissions(c, username).read)
+              .map((c, i) => Object.assign( c, { author: writers.unordered[i].title }))
+              .map(processId),
 
-              read:        rw.read,
-              write:       rw.write
-            }
-          })
-          .then(pruneRecord);
+            read:        rw.read,
+            write:       rw.write
+          }
+        })
+        .then(pruneRecord);
       });
   };
 
   model.patch = function (username, id, diff, author) {
     debug('updating chapter: %s', id);
 
+    const subChaptersToPatch = [];
+
     return model
       .get(username, id, false)
       .then(function (doc) {
         if(!doc.write) throw Boom.unauthorized();
 
-        return resolvePermissions(diff);
+        if(diff.write || diff.read) {
+          return resolvePermissions(diff);
+        }
+
+        return diff;
       })
       .then(function (resolvedDiff) {
+        // TODO If we don't use RecordID(), Orientjs/db freaks out. Probably an OrientJS bug?
+        if(resolvedDiff.ordered) {
+          resolvedDiff.ordered = resolvedDiff.ordered
+            .map(item => {
+              if (typeof item === 'object') {
+                if(!item.id) throw Boom.badRequest('No ID provided for sub-chapter ' + item.title);
 
-        // TODO If we don't use RecordID, Orientjs/db freaks out. Probably an OrientJS bug?
-        if(resolvedDiff.ordered)
-          resolvedDiff.ordered = resolvedDiff.ordered.map(subID => RecordID('#' + subID));
+                subChaptersToPatch.push(item);
 
-        if(resolvedDiff.unordered)
-          resolvedDiff.unordered = resolvedDiff.unordered.map(subID => RecordID('#' + subID));
+                return item.id;
+              }
 
-        return db
-          .update('#' + id)
-          .set(resolvedDiff)
-          .one()
-          .then(function (chapter) {
-            return getOrCreatePersona(username, author)
-              .then(function (persona) {
-                return {
-                  chapter,
-                  persona
-                };
-              });
+              return item;
+            })
+            .map(subID => RecordID('#' + subID));
+        }
+
+        if(resolvedDiff.unordered) {
+          resolvedDiff.unordered = resolvedDiff.unordered
+            .map(item => {
+              if (typeof item === 'object') {
+                subChaptersToPatch.push(item);
+
+                return item.id;
+              }
+
+              return item;
+            })
+            .map(subID => RecordID('#' + subID));
+        }
+
+        const promisesToPatchSubChapters = subChaptersToPatch
+          .map(chapter => {
+            return model.patch(username, chapter.id, chapter, chapter.author || author)
           });
+
+        return Bluebird.all([
+          db
+            .update('#' + id)
+            .set(resolvedDiff)
+            .one()
+            .then(function (chapter) {
+              return getOrCreatePersona(username, author)
+                .then(function (persona) {
+                  return {
+                    chapter,
+                    persona
+                  };
+                });
+            })
+        ].concat(promisesToPatchSubChapters))
+        .get(0);
       });
   };
 
