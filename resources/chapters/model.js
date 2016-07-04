@@ -30,6 +30,19 @@ function pruneRecord (record) {
   return mut;
 }
 
+// TODO If we don't use RecordID() when saving, Orientjs/db freaks out. Probably an OrientJS bug?
+function transformRID (doc) {
+  if(doc.ordered) {
+    doc.ordered = doc.ordered
+      .map(id => RecordID('#' + id));
+  }
+
+  if(doc.unordered) {
+    doc.unordered = doc.unordered
+      .map(id => RecordID('#' + id));
+  }
+}
+
 module.exports = function (cfg) {
   const getPermissions = permissions(cfg).figure;
   const getIdentity    = permissions(cfg).getIdentity;
@@ -86,6 +99,8 @@ module.exports = function (cfg) {
 
     return resolvePermissions(doc)
       .then(function (chapter) {
+        transformRID(chapter);
+
         return db
           .class
           .get('Chapter')
@@ -119,7 +134,7 @@ module.exports = function (cfg) {
             });
         } else {
           //
-          // Link directly to the Identity 
+          // Link directly to the Identity
           //
           return getIdentity(username)
             .get('@rid')
@@ -259,8 +274,6 @@ module.exports = function (cfg) {
   model.patch = function (username, id, diff, author) {
     debug('updating chapter: %s', id);
 
-    const subChaptersToPatch = [];
-
     return model
       .get(username, id, false)
       .then(function (doc) {
@@ -273,58 +286,18 @@ module.exports = function (cfg) {
         return diff;
       })
       .then(function (resolvedDiff) {
-        // TODO If we don't use RecordID(), Orientjs/db freaks out. Probably an OrientJS bug?
-        if(resolvedDiff.ordered) {
-          resolvedDiff.ordered = resolvedDiff.ordered
-            .map(item => {
-              if (typeof item === 'object') {
-                if(!item.id) throw Boom.badRequest('No ID provided for sub-chapter ' + item.title);
+        transformRID(resolvedDiff);
 
-                subChaptersToPatch.push(item);
-
-                return item.id;
-              }
-
-              return item;
-            })
-            .map(subID => RecordID('#' + subID));
-        }
-
-        if(resolvedDiff.unordered) {
-          resolvedDiff.unordered = resolvedDiff.unordered
-            .map(item => {
-              if (typeof item === 'object') {
-                subChaptersToPatch.push(item);
-
-                return item.id;
-              }
-
-              return item;
-            })
-            .map(subID => RecordID('#' + subID));
-        }
-
-        const promisesToPatchSubChapters = subChaptersToPatch
-          .map(chapter => {
-            return model.patch(username, chapter.id, chapter, chapter.author || author)
-          });
-
-        return Bluebird.all([
-          db
+        return db
             .update('#' + id)
             .set(resolvedDiff)
             .one()
-            .then(function (chapter) {
+            .then(function () {
               return getOrCreatePersona(username, author)
-                .then(function (persona) {
-                  return {
-                    chapter,
-                    persona
-                  };
+                .then(function () {
+                  return { id };
                 });
             })
-        ].concat(promisesToPatchSubChapters))
-        .get(0);
       });
   };
 

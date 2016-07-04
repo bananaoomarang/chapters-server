@@ -32,11 +32,40 @@ function parseMdStream (stream, doc) {
   });
 }
 
+function defaults(chapter, opts) {
+  chapter.read      = chapter.read      || opts.read;
+  chapter.write     = chapter.write     || opts.write;
+  chapter.author    = chapter.author    || opts.author;
+  chapter.ordered   = chapter.ordered   || [];
+  chapter.unordered = chapter.unordered || [];
+}
+
 
 module.exports = function (cfg) {
   const chapters = require('./model')(cfg);
 
   let controller = {};
+
+  function createOrPatch(username, chapter) {
+    if (typeof chapter === 'object') {
+      const id = chapter.id;
+      delete chapter.id;
+
+      if (id) {
+        return Joi
+          .validateAsync(chapter, patchChapterSchema)
+          .then(chapters.patch.bind(null, username, id, chapter, chapter.author))
+          .then(c => c.id);
+      }
+
+      return Joi
+        .validateAsync(chapter, chapterSchema)
+        .then(chapters.save.bind(null, username, chapter.author, chapter))
+        .then(c => c.id);
+    }
+
+    return chapter;
+  }
 
   // Receive JSON payload from our editor
   controller.post = function (req, reply) {
@@ -44,23 +73,47 @@ module.exports = function (cfg) {
     const from     = req.params ? req.params.id : false;
     const author   = req.payload.author || username;
 
+    if(req.payload.ordered) {
+      req.payload.ordered = req.payload.ordered
+        .map(chapter => {
+          chapter.isOrdered = true;
+          defaults(chapter, { author, read: [username], write: [username] });
+
+          return createOrPatch(username, chapter);
+        });
+    }
+
+    if(req.payload.unordered) {
+      req.payload.unordered = req.payload.unordered
+        .map(chapter => {
+          chapter.isOrdered = false;
+          defaults(chapter, { author, read: [username], write: [username] });
+
+          return createOrPatch(username, chapter);
+        });
+    }
+
     const doc = {
       read:        req.payload.read      || [username],
       write:       req.payload.write     || [username],
 
       title:       req.payload.title,
       markdown:    req.payload.markdown,
-      ordered:     req.payload.ordered   || [], 
-      unordered:   req.payload.unordered || [],
+      ordered:     Bluebird.all(req.payload.ordered   || []),
+      unordered:   Bluebird.all(req.payload.unordered || []),
       isOrdered:   !!req.payload.isOrdered,
     };
 
     if(!doc.markdown)
       delete doc.markdown;
 
-    Joi
-      .validateAsync(doc, chapterSchema)
-      .then(chapters.save.bind(null, username, from ? author : null, doc))
+    return Bluebird
+      .props(doc)
+      .then(function (chapter) {
+        return Joi
+          .validateAsync(chapter, chapterSchema)
+          .then(chapters.save.bind(null, username, from ? author : null, chapter))
+      })
       .tap(function (chapter) {
         // POST /chapters/{id} links to id as the parent
         if(from)
@@ -135,9 +188,38 @@ module.exports = function (cfg) {
     if(!req.payload.write)
       req.payload.write = [username];
 
-    Joi
-      .validateAsync(req.payload, patchChapterSchema)
-      .then(chapters.patch.bind(null, username, req.params.id, req.payload, author))
+    if(req.payload.ordered) {
+      req.payload.ordered = req.payload.ordered
+        .map(chapter => {
+          chapter.isOrdered = true;
+          defaults(chapter, { author, read: [username], write: [username] });
+
+          return createOrPatch(username, chapter);
+        });
+    }
+
+    if(req.payload.unordered) {
+      req.payload.unordered = req.payload.unordered
+        .map(chapter => {
+          chapter.isOrdered = false;
+          defaults(chapter, { author, read: [username], write: [username] });
+
+          return createOrPatch(username, chapter);
+        });
+    }
+
+    const doc = Object.assign({}, req.payload, {
+      ordered:   Bluebird.all(req.payload.ordered  || []),
+      unordered: Bluebird.all(req.params.unordered || [])
+    });
+
+    return Bluebird
+      .props(doc)
+      .then(function (chapter) {
+        return Joi
+          .validateAsync(chapter, patchChapterSchema)
+          .then(chapters.patch.bind(null, username, req.params.id, chapter, author));
+      })
       .then(function (record) {
         reply(null, { id: record.id });
       })
