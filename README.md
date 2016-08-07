@@ -13,3 +13,5 @@ npm start
 ```
 npm run clean
 ```
+
+### Future development => https://gitlab.com/bananaoomarang/chapters
